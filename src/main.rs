@@ -5,8 +5,10 @@ use env_logger::Env;
 use ethercrab::{Command, Writes};
 use pcap_file::pcapng::{Block, PcapNgReader};
 use pdu::{parse_pdu, Frame};
+use serde_with::serde_as;
+use serde_with::DurationNanoSeconds;
 use smoltcp::wire::{EthernetAddress, EthernetFrame, EthernetProtocol};
-use std::fs::File;
+use std::{fs::File, time::Duration};
 
 const MASTER_ADDR: EthernetAddress = EthernetAddress([0x10, 0x10, 0x10, 0x10, 0x10, 0x10]);
 const REPLY_ADDR: EthernetAddress = EthernetAddress([0x12, 0x10, 0x10, 0x10, 0x10, 0x10]);
@@ -26,9 +28,24 @@ struct Args {
 }
 
 /// A single PDU cycle.
+#[serde_as]
 #[derive(Debug, serde::Serialize)]
 struct PduStat {
-    //
+    index: u8,
+
+    command: String,
+
+    #[serde_as(as = "DurationNanoSeconds")]
+    #[serde(rename = "tx_time_ns")]
+    tx_time: Duration,
+
+    #[serde_as(as = "DurationNanoSeconds")]
+    #[serde(rename = "rx_time_ns")]
+    rx_time: Duration,
+
+    #[serde_as(as = "DurationNanoSeconds")]
+    #[serde(rename = "delta_time_ns")]
+    delta_time: Duration,
 }
 
 fn main() {
@@ -51,6 +68,10 @@ fn main() {
         .skip_while(|packet| !matches!(packet.command, Command::Write(Writes::Lrw { .. })))
         .collect::<Vec<_>>();
 
+    let first_packet = cycle_packets.first().expect("Empty dump");
+
+    let start_offset = first_packet.time;
+
     let p2 = cycle_packets.clone();
 
     let cycles = p2.chunks(args.cycle_packets);
@@ -61,17 +82,46 @@ fn main() {
         args.cycle_packets,
     );
 
-    // TODO: Pair up sends and receives ugh
+    // Pair up sends and receives
+    // ---
 
-    // Write PDU metadata
+    let mut pairs = Vec::new();
+
+    for packet in cycle_packets {
+        // Newly sent PDU
+        if packet.from_master {
+            pairs.push(PduStat {
+                index: packet.index,
+                tx_time: packet.time - start_offset,
+                rx_time: Duration::default(),
+                delta_time: Duration::default(),
+                command: packet.command.to_string(),
+            });
+        }
+        // Response to existing sent PDU
+        else {
+            // Find last sent PDU with this receive PDU's same index
+            let sent = pairs
+                .iter_mut()
+                .rev()
+                .find(|stat| stat.index == packet.index)
+                .expect("Could not find sent packet");
+
+            sent.rx_time = packet.time - start_offset;
+
+            sent.delta_time = sent.rx_time - sent.tx_time;
+        }
+    }
+
+    // Write PDU metadata to file
+    // ---
 
     let out_path = args.file.replace(".pcapng", ".csv");
 
-    // TODO: Nice file name
     let mut wtr = csv::Writer::from_path(&out_path).expect("Unable to create writer");
 
-    for packet in cycle_packets {
-        wtr.serialize(PduStat {}).expect("Serialize");
+    for packet in pairs {
+        wtr.serialize(packet).expect("Serialize");
     }
 
     log::info!("Done, wrote {}", out_path);
@@ -100,13 +150,16 @@ impl PcapFile {
             // Check if there is no error
             let block = block.expect("Block error");
 
-            let raw = match block {
+            let (raw, timestamp) = match block {
                 Block::EnhancedPacket(block) => {
                     let buf = block.data.to_owned();
 
                     let buf = buf.iter().copied().collect::<Vec<_>>();
 
-                    EthernetFrame::new_checked(buf).expect("Failed to parse block")
+                    (
+                        EthernetFrame::new_checked(buf).expect("Failed to parse block"),
+                        block.timestamp,
+                    )
                 }
                 Block::InterfaceDescription(_) | Block::InterfaceStatistics(_) => continue,
                 other => panic!(
@@ -123,27 +176,13 @@ impl PcapFile {
                 );
             }
 
-            let frame = parse_pdu(raw).expect("Faild to parse frame");
+            let mut frame = parse_pdu(raw).expect("Faild to parse frame");
+
+            frame.time = timestamp;
 
             return Some(frame);
         }
 
         None
     }
-
-    // fn next_line_is_send(&mut self) -> EthernetFrame<Vec<u8>> {
-    //     let next = self.next_line();
-
-    //     assert_eq!(next.src_addr(), Self::MASTER_ADDR);
-
-    //     next
-    // }
-
-    // fn next_line_is_reply(&mut self) -> EthernetFrame<Vec<u8>> {
-    //     let next = self.next_line();
-
-    //     assert_eq!(next.src_addr(), Self::REPLY_ADDR);
-
-    //     next
-    // }
 }

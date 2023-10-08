@@ -3,6 +3,8 @@
 //! Would be nice to import them directly from EtherCrab in the future. See
 //! <https://github.com/ethercrab-rs/ethercrab/issues/116>.
 
+use std::time::Duration;
+
 use crate::{ETHERCAT_ETHERTYPE, MASTER_ADDR};
 use ethercrab::{Command, Reads, Writes};
 use nom::{
@@ -26,6 +28,7 @@ pub struct Frame {
     pub from_master: bool,
     pub working_counter: u16,
     pub index: u8,
+    pub time: Duration,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -106,6 +109,7 @@ pub fn parse_pdu(mut raw_packet: EthernetFrame<Vec<u8>>) -> Result<Frame, etherc
         from_master,
         working_counter,
         index,
+        time: Duration::default(),
     })
 }
 

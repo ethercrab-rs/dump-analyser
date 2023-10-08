@@ -18,6 +18,7 @@ num_enum = { version = "0.7.0", default-features = false }
 packed_struct = { version = "0.10.1", default-features = false }
 pcap-file = "2.0.0"
 serde = { version = "1.0.188", features = ["derive"] }
+serde_with = "3.3.0"
 smoltcp = { version = "0.10.0", default-features = false, features = [
     "proto-ipv4",
     "medium-ethernet",
