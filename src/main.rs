@@ -20,9 +20,9 @@ struct Args {
     /// Path to pcapng file.
     file: String,
 
-    /// Number of PDUs per process data cycle.
+    /// Number of PDUs per process data cycle, both requests and responses from the network.
     #[arg(long)]
-    cycle_ops: usize,
+    cycle_packets: usize,
 }
 
 fn main() {
@@ -45,13 +45,12 @@ fn main() {
         .skip_while(|packet| !matches!(packet.command, Command::Write(Writes::Lrw { .. })))
         .collect::<Vec<_>>();
 
-    let cycles = cycle_packets.chunks(args.cycle_ops * 2);
+    let cycles = cycle_packets.chunks(args.cycle_packets);
 
     log::info!(
-        "Found {} cycles with {} sent packets ({} req/res pairs) in each",
+        "Found {} cycles with {} req/res pairs in each",
         cycles.len(),
-        args.cycle_ops,
-        args.cycle_ops * 2,
+        args.cycle_packets,
     );
 }
 
