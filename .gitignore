@@ -1,3 +1,5 @@
 /target
 *.pcapng
 *.csv
+/data/*
+!/data/README.md
