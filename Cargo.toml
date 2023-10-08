@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 clap = { version = "4.4.6", features = ["derive"] }
+csv = "1.3.0"
 env_logger = "0.10.0"
 ethercrab = { git = "https://github.com/ethercrab-rs/ethercrab.git", version = "0.2.1", default-features = false, features = [
     "std",
@@ -16,6 +17,7 @@ nom = { version = "7.1.3", default-features = false }
 num_enum = { version = "0.7.0", default-features = false }
 packed_struct = { version = "0.10.1", default-features = false }
 pcap-file = "2.0.0"
+serde = { version = "1.0.188", features = ["derive"] }
 smoltcp = { version = "0.10.0", default-features = false, features = [
     "proto-ipv4",
     "medium-ethernet",

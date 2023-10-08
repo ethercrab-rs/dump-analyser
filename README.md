@@ -7,5 +7,5 @@ A tool to produce statistics from Wireshark or `tshark` dumps.
 For a capture with 6 sent packets per PDI cycle:
 
 ```bash
-cargo run -- --cycle-ops 6 ./baseline.pcapng
+cargo run --release -- --cycle-ops 6 ./baseline.pcapng
 ```

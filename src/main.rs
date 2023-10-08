@@ -25,6 +25,12 @@ struct Args {
     cycle_packets: usize,
 }
 
+/// A single PDU cycle.
+#[derive(Debug, serde::Serialize)]
+struct PduStat {
+    //
+}
+
 fn main() {
     let args = Args::parse();
 
@@ -32,7 +38,7 @@ fn main() {
 
     log::info!("Analysing {}", args.file);
 
-    let file = File::open(args.file).expect("Error opening file");
+    let file = File::open(&args.file).expect("Error opening file");
     let capture_file = PcapNgReader::new(file).expect("Failed to init PCAP reader");
 
     let reader = PcapFile {
@@ -45,13 +51,30 @@ fn main() {
         .skip_while(|packet| !matches!(packet.command, Command::Write(Writes::Lrw { .. })))
         .collect::<Vec<_>>();
 
-    let cycles = cycle_packets.chunks(args.cycle_packets);
+    let p2 = cycle_packets.clone();
+
+    let cycles = p2.chunks(args.cycle_packets);
 
     log::info!(
         "Found {} cycles with {} req/res pairs in each",
         cycles.len(),
         args.cycle_packets,
     );
+
+    // TODO: Pair up sends and receives ugh
+
+    // Write PDU metadata
+
+    let out_path = args.file.replace(".pcapng", ".csv");
+
+    // TODO: Nice file name
+    let mut wtr = csv::Writer::from_path(&out_path).expect("Unable to create writer");
+
+    for packet in cycle_packets {
+        wtr.serialize(PduStat {}).expect("Serialize");
+    }
+
+    log::info!("Done, wrote {}", out_path);
 }
 
 struct PcapFile {
