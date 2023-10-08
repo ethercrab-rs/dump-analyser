@@ -63,7 +63,7 @@
       "common.max_count": {
         "envName": null,
         "propertyName": "common.max_count",
-        "defaultValue": "1000",
+        "defaultValue": "1000000",
         "description": "Max number of SQL result to display.",
         "type": "number"
       },
@@ -126,7 +126,7 @@
       "zeppelin.jdbc.maxRows": {
         "envName": null,
         "propertyName": "zeppelin.jdbc.maxRows",
-        "defaultValue": "1000",
+        "defaultValue": "1000000",
         "description": "Maximum number of rows fetched from the query.",
         "type": "number"
       },

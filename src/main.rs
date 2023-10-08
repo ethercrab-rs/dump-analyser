@@ -28,14 +28,16 @@ struct Args {
     cycle_packets: usize,
 }
 
-/// A single PDU cycle.
+/// A single PDU cycle, also a single CSV row.
 #[serde_as]
 #[derive(Debug, serde::Serialize)]
 struct PduStat {
     scenario: String,
 
+    /// Wireshark packet number.
     packet_number: usize,
 
+    /// EtherCAT PDU index.
     index: u8,
 
     command: String,
@@ -178,11 +180,7 @@ impl PcapFile {
             };
 
             if raw.src_addr() != MASTER_ADDR && raw.src_addr() != REPLY_ADDR {
-                panic!(
-                    "Frame {} does not have EtherCAT address (has {:?} instead)",
-                    self.packet_number,
-                    raw.src_addr()
-                );
+                continue;
             }
 
             let mut frame = parse_pdu(raw).expect("Faild to parse frame");

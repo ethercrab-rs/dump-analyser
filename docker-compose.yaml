@@ -58,7 +58,7 @@ services:
     environment:
       ZEPPELIN_LOG_DIR: /logs
       ZEPPELIN_NOTEBOOK_DIR: /notebook
-      ZEPPELIN_INTERPRETER_OUTPUT_LIMIT: 1024000
+      ZEPPELIN_INTERPRETER_OUTPUT_LIMIT: 2048000
     volumes:
       - "./data/zeppelin/logs:/logs"
       - "./data/zeppelin/notebook:/notebook"

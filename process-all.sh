@@ -1,11 +1,19 @@
 #!/bin/bash
 
+export PGPASSWORD=ethercrab
+
 # Process pcaps into csv
-for f in dumps/*.pcapng; do; cargo run --release -- --cycle-packets 6 $f; done
+for f in dumps/*.pcapng; do
+    cargo run --release -- --cycle-packets 6 $f
+done
+
+psql \
+    -h localhost \
+    -U ethercrab  \
+    -c "truncate ethercrab"
 
 # Then import them into postgres
 for f in dumps/*.csv; do
-    PGPASSWORD=ethercrab \
     psql \
         -h localhost \
         -U ethercrab  \
