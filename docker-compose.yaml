@@ -22,6 +22,8 @@ services:
     restart: always
     volumes:
       - "./data/postgres/data:/var/lib/postgresql/data/pgdata"
+      # Data dir must be empty for these scripts to run
+      - "./data/pg-init:/docker-entrypoint-initdb.d"
     ports:
       - 5432:5432
     environment:

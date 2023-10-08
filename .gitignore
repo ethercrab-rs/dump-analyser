@@ -3,3 +3,4 @@
 *.csv
 /data/*
 !/data/README.md
+!/data/pg-init
