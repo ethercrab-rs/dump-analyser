@@ -1,6 +1,7 @@
 /target
 *.pcapng
 *.csv
+/dumps
 /data/*
 !/data/README.md
 !/data/pg-init
