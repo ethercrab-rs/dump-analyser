@@ -24,7 +24,7 @@ Postgres on port 5432 and adminer on 8080.
 
 Import some data with:
 
-```
+```bash
 PGPASSWORD=ethercrab \
 psql \
     -h localhost \
