@@ -1,8 +1,17 @@
+mod pdu;
+
 use clap::Parser;
 use env_logger::Env;
+use ethercrab::{Command, Writes};
 use pcap_file::pcapng::{Block, PcapNgReader};
-use smoltcp::wire::{EthernetAddress, EthernetFrame};
+use pdu::{parse_pdu, Frame};
+use smoltcp::wire::{EthernetAddress, EthernetFrame, EthernetProtocol};
 use std::fs::File;
+
+const MASTER_ADDR: EthernetAddress = EthernetAddress([0x10, 0x10, 0x10, 0x10, 0x10, 0x10]);
+const REPLY_ADDR: EthernetAddress = EthernetAddress([0x12, 0x10, 0x10, 0x10, 0x10, 0x10]);
+const ETHERCAT_ETHERTYPE_RAW: u16 = 0x88a4;
+const ETHERCAT_ETHERTYPE: EthernetProtocol = EthernetProtocol::Unknown(ETHERCAT_ETHERTYPE_RAW);
 
 /// Wireshark EtherCAT dump analyser
 #[derive(Parser, Debug)]
@@ -32,11 +41,18 @@ fn main() {
     };
 
     // Ignore everything up to the first `LRW`. This is where the process cycle starts.
-    let packets = reader.skip_while(|packet| {
-        // TODO: Open up PDU interface in ethercrab so we can reuse the parser
+    let cycle_packets = reader
+        .skip_while(|packet| !matches!(packet.command, Command::Write(Writes::Lrw { .. })))
+        .collect::<Vec<_>>();
 
-        todo!()
-    });
+    let cycles = cycle_packets.chunks(args.cycle_ops * 2);
+
+    log::info!(
+        "Found {} cycles with {} sent packets ({} req/res pairs) in each",
+        cycles.len(),
+        args.cycle_ops,
+        args.cycle_ops * 2,
+    );
 }
 
 struct PcapFile {
@@ -47,7 +63,7 @@ struct PcapFile {
 }
 
 impl Iterator for PcapFile {
-    type Item = EthernetFrame<Vec<u8>>;
+    type Item = Frame;
 
     fn next(&mut self) -> Option<Self::Item> {
         self.next_line()
@@ -55,10 +71,7 @@ impl Iterator for PcapFile {
 }
 
 impl PcapFile {
-    const MASTER_ADDR: EthernetAddress = EthernetAddress([0x10, 0x10, 0x10, 0x10, 0x10, 0x10]);
-    const REPLY_ADDR: EthernetAddress = EthernetAddress([0x12, 0x10, 0x10, 0x10, 0x10, 0x10]);
-
-    fn next_line(&mut self) -> Option<EthernetFrame<Vec<u8>>> {
+    fn next_line(&mut self) -> Option<Frame> {
         while let Some(block) = self.capture_file.next_block() {
             self.packet_number += 1;
 
@@ -69,9 +82,9 @@ impl PcapFile {
                 Block::EnhancedPacket(block) => {
                     let buf = block.data.to_owned();
 
-                    let buf2 = buf.iter().copied().collect::<Vec<_>>();
+                    let buf = buf.iter().copied().collect::<Vec<_>>();
 
-                    EthernetFrame::new_checked(buf2).expect("Failed to parse block")
+                    EthernetFrame::new_checked(buf).expect("Failed to parse block")
                 }
                 Block::InterfaceDescription(_) | Block::InterfaceStatistics(_) => continue,
                 other => panic!(
@@ -80,7 +93,7 @@ impl PcapFile {
                 ),
             };
 
-            if raw.src_addr() != Self::MASTER_ADDR && raw.src_addr() != Self::REPLY_ADDR {
+            if raw.src_addr() != MASTER_ADDR && raw.src_addr() != REPLY_ADDR {
                 panic!(
                     "Frame {} does not have EtherCAT address (has {:?} instead)",
                     self.packet_number,
@@ -88,7 +101,9 @@ impl PcapFile {
                 );
             }
 
-            return Some(raw);
+            let frame = parse_pdu(raw).expect("Faild to parse frame");
+
+            return Some(frame);
         }
 
         None

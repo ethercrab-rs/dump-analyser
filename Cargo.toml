@@ -8,6 +8,16 @@ edition = "2021"
 [dependencies]
 clap = { version = "4.4.6", features = ["derive"] }
 env_logger = "0.10.0"
+ethercrab = { git = "https://github.com/ethercrab-rs/ethercrab.git", version = "0.2.1", default-features = false, features = [
+    "std",
+] }
 log = "0.4.20"
+nom = { version = "7.1.3", default-features = false }
+num_enum = { version = "0.7.0", default-features = false }
+packed_struct = { version = "0.10.1", default-features = false }
 pcap-file = "2.0.0"
-smoltcp = { version = "0.10.0", default-features = false, features = ["proto-ipv4", "medium-ethernet", "socket-raw"] }
+smoltcp = { version = "0.10.0", default-features = false, features = [
+    "proto-ipv4",
+    "medium-ethernet",
+    "socket-raw",
+] }
