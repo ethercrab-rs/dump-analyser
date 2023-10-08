@@ -62,3 +62,41 @@ services:
     volumes:
       - "./data/zeppelin/logs:/logs"
       - "./data/zeppelin/notebook:/notebook"
+
+# Kibana is WIP at time of writing. I can't get the postgres connector to work :(
+#
+#   elasticsearch:
+#     container_name: elasticsearch
+#     image: elasticsearch:8.10.2
+#     networks:
+#       - elastic
+#     ports:
+#       - 9200:9200
+#       - 9300:9300
+#     environment:
+#       discovery.type: single-node
+#       xpack.security.enabled: false
+
+#   kibana:
+#     container_name: kibana
+#     image: kibana:8.10.2
+#     links:
+#       - "postgres:postgres"
+#       - "elasticsearch:elasticsearch"
+#     ports:
+#       - 5601:5601
+#     networks:
+#       - elastic
+#     depends_on:
+#       - elasticsearch
+#     environment:
+#       SERVER_NAME: ethercrab.house
+#       ELASTICSEARCH_URL: http://elasticsearch:9200
+#       ELASTIC_PASSWORD: ethercrab
+#       ELASTIC_USER: ethercrab
+#     # volumes:
+#     #   # This might need a `touch kibana.yml` and a `chown 1000:1000 kibana.yml`.
+#     #   - ./data/kibana/kibana.yml:/usr/share/kibana/config/kibana.yml
+
+# networks:
+#   elastic:
