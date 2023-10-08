@@ -29,6 +29,7 @@ pub struct Frame {
     pub working_counter: u16,
     pub index: u8,
     pub time: Duration,
+    pub wireshark_packet_number: usize,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -93,7 +94,7 @@ pub fn parse_pdu(mut raw_packet: EthernetFrame<Vec<u8>>) -> Result<Frame, etherc
     let (i, command) = parse_command(command_code, i)?;
 
     let (i, flags) = map_res(take(2usize), PduFlags::unpack_from_slice)(i)?;
-    let (i, irq) = le_u16(i)?;
+    let (i, _irq) = le_u16(i)?;
     let (i, data) = take(flags.length)(i)?;
     let (i, working_counter) = le_u16(i)?;
 
@@ -110,6 +111,7 @@ pub fn parse_pdu(mut raw_packet: EthernetFrame<Vec<u8>>) -> Result<Frame, etherc
         working_counter,
         index,
         time: Duration::default(),
+        wireshark_packet_number: 0,
     })
 }
 

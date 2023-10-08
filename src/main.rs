@@ -8,6 +8,7 @@ use pdu::{parse_pdu, Frame};
 use serde_with::serde_as;
 use serde_with::DurationNanoSeconds;
 use smoltcp::wire::{EthernetAddress, EthernetFrame, EthernetProtocol};
+use std::path::PathBuf;
 use std::{fs::File, time::Duration};
 
 const MASTER_ADDR: EthernetAddress = EthernetAddress([0x10, 0x10, 0x10, 0x10, 0x10, 0x10]);
@@ -20,7 +21,7 @@ const ETHERCAT_ETHERTYPE: EthernetProtocol = EthernetProtocol::Unknown(ETHERCAT_
 #[command(author, version, about, long_about = None)]
 struct Args {
     /// Path to pcapng file.
-    file: String,
+    file: PathBuf,
 
     /// Number of PDUs per process data cycle, both requests and responses from the network.
     #[arg(long)]
@@ -31,6 +32,10 @@ struct Args {
 #[serde_as]
 #[derive(Debug, serde::Serialize)]
 struct PduStat {
+    scenario: String,
+
+    packet_number: usize,
+
     index: u8,
 
     command: String,
@@ -53,7 +58,7 @@ fn main() {
 
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
 
-    log::info!("Analysing {}", args.file);
+    log::info!("Analysing {:?}", args.file);
 
     let file = File::open(&args.file).expect("Error opening file");
     let capture_file = PcapNgReader::new(file).expect("Failed to init PCAP reader");
@@ -91,6 +96,8 @@ fn main() {
         // Newly sent PDU
         if packet.from_master {
             pairs.push(PduStat {
+                scenario: args.file.file_name().unwrap().to_string_lossy().to_string(),
+                packet_number: packet.wireshark_packet_number,
                 index: packet.index,
                 tx_time: packet.time - start_offset,
                 rx_time: Duration::default(),
@@ -116,7 +123,9 @@ fn main() {
     // Write PDU metadata to file
     // ---
 
-    let out_path = args.file.replace(".pcapng", ".csv");
+    let mut out_path = args.file.clone();
+
+    out_path.set_extension("csv");
 
     let mut wtr = csv::Writer::from_path(&out_path).expect("Unable to create writer");
 
@@ -124,7 +133,7 @@ fn main() {
         wtr.serialize(packet).expect("Serialize");
     }
 
-    log::info!("Done, wrote {}", out_path);
+    log::info!("Done, wrote {:?}", out_path);
 }
 
 struct PcapFile {
@@ -179,6 +188,7 @@ impl PcapFile {
             let mut frame = parse_pdu(raw).expect("Faild to parse frame");
 
             frame.time = timestamp;
+            frame.wireshark_packet_number = self.packet_number;
 
             return Some(frame);
         }
