@@ -5,3 +5,4 @@
 /data/*
 !/data/README.md
 !/data/pg-init
+!/data/zeppelin/notebook
