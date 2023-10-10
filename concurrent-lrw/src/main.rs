@@ -17,6 +17,9 @@ use thread_priority::{
     ThreadPriorityValue, ThreadSchedulePolicy,
 };
 
+const MAIN_THREAD_PRIO: u8 = 90u8;
+const NET_THREAD_PRIO: u8 = 91u8;
+
 /// Maximum number of slaves that can be stored. This must be a power of 2 greater than 1.
 const MAX_SLAVES: usize = 16;
 /// Maximum PDU data payload size - set this to the max PDI size or higher.
@@ -45,7 +48,7 @@ fn main() -> Result<(), Error> {
     let thread_id = thread_native_id();
     set_thread_priority_and_policy(
         thread_id,
-        ThreadPriority::Crossplatform(ThreadPriorityValue::try_from(90u8).unwrap()),
+        ThreadPriority::Crossplatform(ThreadPriorityValue::try_from(MAIN_THREAD_PRIO).unwrap()),
         ThreadSchedulePolicy::Realtime(RealtimeThreadSchedulePolicy::Fifo),
     )
     .expect("could not set thread priority. Are the PREEMPT_RT patches in use?");
@@ -115,7 +118,7 @@ fn spawn_ethercat_master(ethercat_nic: &str) -> Client<'static> {
         let thread_id = thread_native_id();
         set_thread_priority_and_policy(
             thread_id,
-            ThreadPriority::Crossplatform(ThreadPriorityValue::try_from(91u8).unwrap()),
+            ThreadPriority::Crossplatform(ThreadPriorityValue::try_from(NET_THREAD_PRIO).unwrap()),
             ThreadSchedulePolicy::Realtime(RealtimeThreadSchedulePolicy::Fifo),
         )
         .expect("could not set thread priority. Are the PREEMPT_RT patches in use?");
