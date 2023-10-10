@@ -7,8 +7,8 @@
 //! - EL2828 (1 byte of outputs)
 
 use ethercrab::{
-    error::Error, slave_group::PreOp, std::tx_rx_task, Client, ClientConfig, Command, PduStorage,
-    RegisterAddress, SlaveGroup, SlaveState, Timeouts,
+    error::Error, slave_group::PreOp, Client, ClientConfig, Command, PduStorage, RegisterAddress,
+    SlaveGroup, SlaveState, Timeouts,
 };
 use smol::stream::StreamExt;
 use std::{sync::Arc, time::Duration};
@@ -40,17 +40,7 @@ fn main() -> Result<(), Error> {
         .nth(1)
         .expect("Provide network interface as first argument.");
 
-    let (tx, rx, pdu_loop) = PDU_STORAGE.try_split().expect("can only split once");
-
-    let client = Client::new(
-        pdu_loop,
-        Timeouts {
-            wait_loop_delay: Duration::from_millis(2),
-            mailbox_response: Duration::from_millis(1000),
-            ..Default::default()
-        },
-        ClientConfig::default(),
-    );
+    let client = spawn_ethercat_master(&interface);
 
     let thread_id = thread_native_id();
     set_thread_priority_and_policy(
@@ -59,8 +49,6 @@ fn main() -> Result<(), Error> {
         ThreadSchedulePolicy::Realtime(RealtimeThreadSchedulePolicy::Fifo),
     )
     .expect("could not set thread priority. Are the PREEMPT_RT patches in use?");
-
-    smol::spawn(tx_rx_task(&interface, tx, rx).expect("spawn TX/RX task")).detach();
 
     let client = Arc::new(client);
 
@@ -104,6 +92,38 @@ fn main() -> Result<(), Error> {
     });
 
     Ok(())
+}
+
+fn spawn_ethercat_master(ethercat_nic: &str) -> Client<'static> {
+    let (tx, rx, pdu_loop) = PDU_STORAGE.try_split().expect("Split");
+
+    let client = Client::new(
+        pdu_loop,
+        Timeouts {
+            state_transition: Duration::from_secs(5),
+            // Same timeout as EL2008 watchdog
+            pdu: Duration::from_millis(100),
+            ..Default::default()
+        },
+        ClientConfig::default(),
+    );
+
+    let tx_rx_task = ethercrab::std::tx_rx_task(ethercat_nic, tx, rx).expect("Spawn");
+
+    // Spawn EtherCrab network TX/RX task in the background
+    std::thread::spawn(move || {
+        let thread_id = thread_native_id();
+        set_thread_priority_and_policy(
+            thread_id,
+            ThreadPriority::Crossplatform(ThreadPriorityValue::try_from(91u8).unwrap()),
+            ThreadSchedulePolicy::Realtime(RealtimeThreadSchedulePolicy::Fifo),
+        )
+        .expect("could not set thread priority. Are the PREEMPT_RT patches in use?");
+
+        smol::block_on(tx_rx_task).expect("TX/RX task");
+    });
+
+    client
 }
 
 async fn slow_tick(slow_outputs: &mut Slow<ethercrab::slave_group::Op>, client: &Arc<Client<'_>>) {
