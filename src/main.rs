@@ -98,7 +98,7 @@ fn main() {
         // Newly sent PDU
         if packet.from_master {
             pairs.push(PduStat {
-                scenario: args.file.file_name().unwrap().to_string_lossy().to_string(),
+                scenario: args.file.file_stem().unwrap().to_string_lossy().to_string(),
                 packet_number: packet.wireshark_packet_number,
                 index: packet.index,
                 tx_time: packet.time - start_offset,
