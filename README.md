@@ -2,13 +2,20 @@
 
 A tool to produce statistics from Wireshark or `tshark` dumps.
 
-## Example
-
-For a capture with 6 sent packets per PDI cycle:
+## Running the example
 
 ```bash
-cargo run --release -- --cycle-ops 6 ./baseline.pcapng
+cd concurrent-lrw
+just run <interface>
 ```
+
+## Result processing
+
+```bash
+cargo run --release -- --cycle-ops 6 ./dumps/baseline.pcapng
+```
+
+NOTE: `--cycle-ops` is ignored. TODO: Remove arg lol
 
 ## Importing data into Postgres
 
@@ -25,11 +32,7 @@ Postgres on port 5432 and adminer on 8080.
 Import some data with:
 
 ```bash
-PGPASSWORD=ethercrab \
-psql \
-    -h localhost \
-    -U ethercrab  \
-    -c "\copy ethercrab(scenario, packet_number, index, command, tx_time_ns, rx_time_ns, delta_time_ns) from './baseline.csv' DELIMITER E',' csv header"
+./ingest ./dumps/baseline.pcapng
 ```
 
 ### Grafana
