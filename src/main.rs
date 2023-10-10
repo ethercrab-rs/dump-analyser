@@ -79,15 +79,11 @@ fn main() {
 
     let start_offset = first_packet.time;
 
-    let p2 = cycle_packets.clone();
+    // let p2 = cycle_packets.clone();
 
-    let cycles = p2.chunks(args.cycle_packets);
+    // let cycles = p2.chunks(args.cycle_packets);
 
-    log::info!(
-        "Found {} cycles with {} req/res pairs in each",
-        cycles.len(),
-        args.cycle_packets,
-    );
+    log::info!("Found {} cycle packets", cycle_packets.len());
 
     // Pair up sends and receives
     // ---

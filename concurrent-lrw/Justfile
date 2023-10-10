@@ -1,0 +1,4 @@
+run *args:
+     cargo build --release && \
+     sudo setcap cap_net_raw=pe ../target/release/concurrent-lrw && \
+     ../target/release/concurrent-lrw {{args}}
