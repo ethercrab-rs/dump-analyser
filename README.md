@@ -7,6 +7,8 @@ A tool to produce statistics from Wireshark or `tshark` dumps.
 ```bash
 cd concurrent-lrw
 just run <interface>
+# OR
+sudo ./target/release/concurrent-lrw <interface>
 ```
 
 ## Result processing
