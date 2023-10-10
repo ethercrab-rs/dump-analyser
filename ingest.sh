@@ -11,7 +11,7 @@ CSV="${FILE%.pcapng}.csv"
 echo "Processing $FILE (scenario $SCENARIO, save to $CSV)"
 
 # Process pcap into csv
-cargo run --release -- --cycle-packets 6 $FILE
+cargo run --quiet --release -- --cycle-packets 6 $FILE
 
 psql -h localhost -U ethercrab  -c "insert into cycles (scenario) values ('${SCENARIO}') on conflict do nothing;"
 
