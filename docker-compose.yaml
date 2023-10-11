@@ -1,4 +1,17 @@
 version: "3.5"
+
+x-redash-service: &redash-service
+  image: redash/redash:10.1.0.b50633
+  depends_on:
+    - postgres
+    - redis
+  restart: always
+  environment: &redash-service-env
+    REDASH_WEB_WORKERS: 4
+    REDASH_COOKIE_SECRET: ethercrab
+    REDASH_REDIS_URL: redis://redis:6379/0
+    REDASH_DATABASE_URL: postgresql://ethercrab:ethercrab@postgres/redash
+
 services:
   # NOTE: Rubbish for non-time-series, but left in for posterity
   grafana:
@@ -63,6 +76,64 @@ services:
       - "./data/zeppelin/logs:/logs"
       - "./data/zeppelin/notebook:/notebook"
 
+  redash:
+    # NOTE: Run `dc run --rm server create_db` to create tables!
+    <<: *redash-service
+    command: server
+    container_name: redash
+    depends_on:
+      - scheduler
+      - scheduled_worker
+      - adhoc_worker
+      - redis
+      - postgres
+    ports:
+      - "5000:5000"
+    environment:
+      <<: *redash-service-env
+      REDASH_WEB_WORKERS: 4
+  scheduler:
+    <<: *redash-service
+    command: scheduler
+    environment:
+      <<: *redash-service-env
+      QUEUES: "celery"
+      WORKERS_COUNT: 1
+  scheduled_worker:
+    <<: *redash-service
+    command: worker
+    environment:
+      <<: *redash-service-env
+      QUEUES: "scheduled_queries,schemas"
+      WORKERS_COUNT: 1
+  adhoc_worker:
+    <<: *redash-service
+    command: worker
+    environment:
+      <<: *redash-service-env
+      QUEUES: "queries"
+      WORKERS_COUNT: 2
+  redis:
+    container_name: redis
+    image: redis:7.0-alpine
+    restart: always
+    ports:
+      - "6379:6379"
+  # postgres:
+  #   image: postgres:9.6-alpine
+  #   env_file: /opt/redash/env
+  #   volumes:
+  #     - /opt/redash/postgres-data:/var/lib/postgresql/data
+  #   restart: always
+  # nginx:
+  #   image: redash/nginx:latest
+  #   ports:
+  #     - "80:80"
+  #   depends_on:
+  #     - server
+  #   links:
+  #     - server:redash
+  #   restart: always
 # Kibana is WIP at time of writing. I can't get the postgres connector to work :(
 #
 #   elasticsearch:

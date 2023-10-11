@@ -12,6 +12,9 @@ CREATE TABLE "ethercrab" (
   PRIMARY KEY ("id")
 );
 
+create database redash;
+grant all privileges on database redash to ethercrab;
+
 CREATE INDEX "ethercrab_scenario" ON "ethercrab" ("scenario");
 
 CREATE TABLE "cycles" (
