@@ -244,9 +244,9 @@ dependencies = [
 
 [[package]]
 name = "atomic_refcell"
-version = "0.1.12"
+version = "0.1.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "76f2bfe491d41d45507b8431da8274f7feeca64a49e86d980eed2937ec2ff020"
+checksum = "41e67cd8309bbd06cd603a9e693a784ac2e5d1e955f11286e355089fcab3047c"
 
 [[package]]
 name = "autocfg"
@@ -666,7 +666,7 @@ dependencies = [
 [[package]]
 name = "ethercrab"
 version = "0.2.1"
-source = "git+https://github.com/ethercrab-rs/ethercrab.git#56747874383ecec17047f5c8e44f22ffd9cd0a13"
+source = "git+https://github.com/ethercrab-rs/ethercrab.git#d4a82d13e160791a23808b2934539f0e0fbae902"
 dependencies = [
  "async-io",
  "atomic_enum",
@@ -680,7 +680,7 @@ dependencies = [
  "libc",
  "log",
  "nom",
- "num_enum 0.6.1",
+ "num_enum 0.7.0",
  "packed_struct",
  "pnet_datalink",
  "rustix 0.38.18",
@@ -1289,9 +1289,9 @@ dependencies = [
 
 [[package]]
 name = "regex-syntax"
-version = "0.8.0"
+version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c3cbb081b9784b07cceb8824c8583f86db4814d172ab043f3c23f7dc600bf83d"
+checksum = "56d84fdd47036b038fc80dd333d10b6aab10d5d31f4a366e20014def75328d33"
 
 [[package]]
 name = "rustc-demangle"
