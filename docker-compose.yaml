@@ -119,21 +119,16 @@ services:
     restart: always
     ports:
       - "6379:6379"
-  # postgres:
-  #   image: postgres:9.6-alpine
-  #   env_file: /opt/redash/env
-  #   volumes:
-  #     - /opt/redash/postgres-data:/var/lib/postgresql/data
-  #   restart: always
-  # nginx:
-  #   image: redash/nginx:latest
-  #   ports:
-  #     - "80:80"
-  #   depends_on:
-  #     - server
-  #   links:
-  #     - server:redash
-  #   restart: always
+
+  jupyter:
+    container_name: jupyter
+    build: ./jupyter-rust
+    links:
+      - "postgres:postgres"
+    ports:
+      - 8888:8888
+    volumes:
+      - ./data/notebooks:/opt/notebooks
 # Kibana is WIP at time of writing. I can't get the postgres connector to work :(
 #
 #   elasticsearch:
