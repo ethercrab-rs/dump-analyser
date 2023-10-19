@@ -414,7 +414,7 @@ checksum = "acbf1af155f9b9ef647e42cdc158db4b64a1b61f743629225fde6f3e0be2a7c7"
 name = "concurrent-lrw"
 version = "0.1.0"
 dependencies = [
- "ethercrab 0.2.1 (git+https://github.com/ethercrab-rs/ethercrab.git?rev=56747874383ecec17047f5c8e44f22ffd9cd0a13)",
+ "ethercrab 0.2.1",
  "smol",
  "thread-priority",
 ]
@@ -564,7 +564,7 @@ dependencies = [
  "clap",
  "csv",
  "env_logger",
- "ethercrab 0.2.1 (git+https://github.com/ethercrab-rs/ethercrab.git)",
+ "ethercrab 0.3.1",
  "log",
  "nom",
  "num_enum 0.7.0",
@@ -665,8 +665,9 @@ dependencies = [
 
 [[package]]
 name = "ethercrab"
-version = "0.2.1"
-source = "git+https://github.com/ethercrab-rs/ethercrab.git#d4a82d13e160791a23808b2934539f0e0fbae902"
+version = "0.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a04d6f28d5b7afdcdd529939b16f9e54ac337853f9a418676f251d9ed283a07a"
 dependencies = [
  "async-io",
  "atomic_enum",

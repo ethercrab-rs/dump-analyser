@@ -10,9 +10,7 @@ default-run = "main"
 clap = { version = "4.4.6", features = ["derive"] }
 csv = "1.3.0"
 env_logger = "0.10.0"
-ethercrab = { git = "https://github.com/ethercrab-rs/ethercrab.git", version = "0.2.1", default-features = false, features = [
-    "std",
-] }
+ethercrab = { version = "0.3.0", default-features = false, features = ["std"] }
 log = "0.4.20"
 nom = { version = "7.1.3", default-features = false }
 num_enum = { version = "0.7.0", default-features = false }
