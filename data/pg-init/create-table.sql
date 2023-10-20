@@ -15,6 +15,9 @@ CREATE TABLE "ethercrab" (
 create database redash;
 grant all privileges on database redash to ethercrab;
 
+create database latency;
+grant all privileges on database latency to ethercrab;
+
 CREATE INDEX "ethercrab_scenario" ON "ethercrab" ("scenario");
 
 CREATE TABLE "cycles" (
