@@ -2,8 +2,6 @@ use clap::Parser;
 use dump_analyser::*;
 use env_logger::Env;
 use ethercrab::{Command, Writes};
-use pcap_file::pcapng::PcapNgReader;
-use std::fs::File;
 use std::time::Duration;
 
 fn main() {
@@ -13,13 +11,7 @@ fn main() {
 
     log::info!("Analysing {:?}", args.file);
 
-    let file = File::open(&args.file).expect("Error opening file");
-    let capture_file = PcapNgReader::new(file).expect("Failed to init PCAP reader");
-
-    let reader = PcapFile {
-        capture_file,
-        packet_number: 0,
-    };
+    let reader = PcapFile::new(&args.file);
 
     // Ignore everything up to the first `LRW`. This is where the process cycle starts.
     let cycle_packets = reader

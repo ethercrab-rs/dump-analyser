@@ -6,6 +6,7 @@ use pdu::{parse_pdu, Frame};
 use serde_with::serde_as;
 use serde_with::DurationNanoSeconds;
 use smoltcp::wire::{EthernetAddress, EthernetFrame, EthernetProtocol};
+use std::path::Path;
 use std::path::PathBuf;
 use std::{fs::File, time::Duration};
 
@@ -69,6 +70,16 @@ impl Iterator for PcapFile {
 }
 
 impl PcapFile {
+    pub fn new(path: &Path) -> Self {
+        let file = File::open(&path).expect("Error opening file");
+        let capture_file = PcapNgReader::new(file).expect("Failed to init PCAP reader");
+
+        Self {
+            capture_file,
+            packet_number: 0,
+        }
+    }
+
     pub fn next_line(&mut self) -> Option<Frame> {
         while let Some(block) = self.capture_file.next_block() {
             self.packet_number += 1;
