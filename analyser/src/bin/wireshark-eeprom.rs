@@ -69,7 +69,13 @@ fn main() -> Result<(), ethercrab::error::Error> {
 
             let eeprom_data =
                 if register == u16::from(RegisterAddress::SiiData) && !packet.from_master {
-                    Some(packet.data)
+                    let d = packet
+                        .data
+                        .chunks(2)
+                        .map(|chunk| u16::from_le_bytes(chunk.try_into().unwrap()))
+                        .collect::<Vec<_>>();
+
+                    Some(d)
                 } else {
                     None
                 };
