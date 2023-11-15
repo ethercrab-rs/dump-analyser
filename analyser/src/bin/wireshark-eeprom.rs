@@ -69,11 +69,14 @@ fn main() -> Result<(), ethercrab::error::Error> {
 
             let eeprom_data =
                 if register == u16::from(RegisterAddress::SiiData) && !packet.from_master {
-                    let d = packet
-                        .data
-                        .chunks(2)
-                        .map(|chunk| u16::from_le_bytes(chunk.try_into().unwrap()))
-                        .collect::<Vec<_>>();
+                    // Useful for matching with Wireshark prettyprinting
+                    // let d = packet
+                    //     .data
+                    //     .chunks(2)
+                    //     .map(|chunk| u16::from_le_bytes(chunk.try_into().unwrap()))
+                    //     .collect::<Vec<_>>();
+
+                    let d = packet.data;
 
                     Some(d)
                 } else {
@@ -83,7 +86,7 @@ fn main() -> Result<(), ethercrab::error::Error> {
             eeprom_addr
                 .map(|addr| println!("{:#06x} Set EEPROM addr to {:#06x}", slave_address, addr));
 
-            eeprom_data.map(|d| println!("{:#06x} EEPROM data {:#06x?}", slave_address, d));
+            eeprom_data.map(|d| println!("{:#06x} EEPROM data {:#x?}", slave_address, d));
         }
 
         // dbg!(slave_address, register);
