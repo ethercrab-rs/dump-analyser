@@ -575,7 +575,7 @@ dependencies = [
  "clap",
  "csv",
  "env_logger",
- "ethercrab 0.3.1",
+ "ethercrab 0.3.3",
  "log",
  "nom",
  "num_enum 0.7.0",
@@ -675,7 +675,7 @@ dependencies = [
 
 [[package]]
 name = "ethercrab"
-version = "0.3.1"
+version = "0.3.3"
 dependencies = [
  "async-io 2.0.0",
  "atomic-waker",
