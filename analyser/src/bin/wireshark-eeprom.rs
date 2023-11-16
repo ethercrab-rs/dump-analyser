@@ -23,22 +23,6 @@ pub struct Args {
 }
 
 fn main() -> Result<(), ethercrab::error::Error> {
-    // Open capture file
-
-    // For each packet
-
-    // Parse into EtherCAT packet, at least up to ADP/ADO so we can group by slave
-
-    // Get slave record from hashmap
-
-    // If packet is EEPROM address
-
-    // Set auto inc address in slave writer
-
-    // If packet is EEPROM data
-
-    // Write slice, make slave writer increment address internally
-
     let args = Args::parse();
 
     env_logger::Builder::from_env(Env::default().default_filter_or("info")).init();
