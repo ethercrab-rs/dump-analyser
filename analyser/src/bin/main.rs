@@ -15,7 +15,7 @@ fn main() {
 
     // Ignore everything up to the first `LRW`. This is where the process cycle starts.
     let cycle_packets = reader
-        .skip_while(|packet| !matches!(packet.command, Command::Write(Writes::Lrw { .. })))
+        // .skip_while(|packet| !matches!(packet.command, Command::Write(Writes::Lrw { .. })))
         .collect::<Vec<_>>();
 
     let first_packet = cycle_packets.first().expect("Empty dump");
