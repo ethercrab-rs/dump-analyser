@@ -71,7 +71,13 @@ impl Iterator for PcapFile {
 
 impl PcapFile {
     pub fn new(path: &Path) -> Self {
-        let file = File::open(&path).expect("Error opening file");
+        let file = File::open(&path)
+            .map_err(|e| {
+                log::error!("Failed to open PCAP file {}: {}", path.display(), e);
+
+                e
+            })
+            .expect("Error opening file");
         let capture_file = PcapNgReader::new(file).expect("Failed to init PCAP reader");
 
         Self {
