@@ -49,6 +49,7 @@ services:
       # newer auth methods.
       POSTGRES_HOST_AUTH_METHOD: md5
       POSTGRES_INITDB_ARGS: --auth-host=md5
+    shm_size: 1g
 
   adminer:
     container_name: adminer
