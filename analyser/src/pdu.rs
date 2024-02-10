@@ -83,20 +83,21 @@ pub fn parse_pdu(mut raw_packet: EthernetFrame<Vec<u8>>) -> Result<Frame, etherc
 
     let i = raw_packet.payload_mut();
 
-    let (i, header) = FrameHeader::parse(i)?;
+    let (i, header) = FrameHeader::parse::<()>(i).expect("FrameHeader");
 
     // Only take as much as the header says we should
-    let (_rest, i) = take(header.payload_len())(i)?;
+    let (_rest, i) = take::<_, _, ()>(header.payload_len())(i).expect("Body");
 
-    let (i, command_code) = u8(i)?;
-    let (i, index) = u8(i)?;
+    let (i, command_code) = u8::<_, ()>(i).expect("command_code");
+    let (i, index) = u8::<_, ()>(i).expect("index");
 
-    let (i, command) = parse_command(command_code, i)?;
+    let (i, command) = parse_command(command_code, i).expect("command");
 
-    let (i, flags) = map_res(take(2usize), PduFlags::unpack_from_slice)(i)?;
-    let (i, _irq) = le_u16(i)?;
-    let (i, data) = take(flags.length)(i)?;
-    let (i, working_counter) = le_u16(i)?;
+    let (i, flags) =
+        map_res(take::<_, _, ()>(2usize), PduFlags::unpack_from_slice)(i).expect("flags");
+    let (i, _irq) = le_u16::<_, ()>(i).expect("_irq");
+    let (i, data) = take::<_, _, ()>(flags.length)(i).expect("data");
+    let (i, working_counter) = le_u16::<_, ()>(i).expect("working_counter");
 
     // `_i` should be empty as we `take()`d an exact amount above.
     debug_assert_eq!(i.len(), 0, "trailing data in received frame");
