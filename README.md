@@ -47,6 +47,15 @@ Import all dumps with
 This seems to be the best, tied with Zeppelin. SQL can be written to show latencies and histograms
 and stuff.
 
+### Setup
+
+- `dc up -d redash`
+- Run [this](https://github.com/getredash/redash/issues/5591#issuecomment-928050601):
+  `dc run --rm redash create_db`
+- <http://localhost:5000>
+- Make a user with generally any old garbage as the user/email/password, as long as you remember it.
+- Make a Postgres data source with host/user/pass set to `ethercrab`.
+
 ### Example latency comparison
 
 ```sql
