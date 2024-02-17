@@ -1,7 +1,6 @@
 use clap::Parser;
 use dump_analyser::*;
 use env_logger::Env;
-use ethercrab::{Command, Writes};
 use std::time::Duration;
 
 fn main() {
