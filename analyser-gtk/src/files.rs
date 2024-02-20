@@ -31,36 +31,16 @@ impl DumpFiles {
 
         let paths = fs::read_dir(path)
             .expect("read_dir")
-            .filter_map(|entry| {
+            .map(|entry| {
                 let entry = entry.unwrap();
-                let path = entry.path();
 
-                if path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("pcapng") {
-                    Some(path)
-                } else {
-                    None
-                }
+                entry.path()
             })
             .collect::<Vec<_>>();
 
         self_.update_items(paths);
 
         self_
-    }
-
-    pub async fn start_watch_dir(&self, rx: async_channel::Receiver<DebounceEventResult>) {
-        println!("Start watch future");
-        while let Ok(result) = rx.recv().await {
-            println!("Change event");
-
-            // TODO: This needs to run on the main thread with `glib::source::idle_add_once`
-            // self.add_item("Changed".to_string());
-
-            match result {
-                Ok(event) => println!("changed: {:?}", event),
-                Err(e) => println!("watch error: {:?}", e),
-            }
-        }
     }
 
     /// Only call this once.
@@ -80,7 +60,12 @@ impl DumpFiles {
     }
 
     pub fn update_items(&mut self, paths: Vec<PathBuf>) {
-        let paths = paths.into_iter().collect::<HashSet<_>>();
+        let paths = paths
+            .into_iter()
+            .filter(|path| {
+                path.is_file() && path.extension().and_then(|s| s.to_str()) == Some("pcapng")
+            })
+            .collect::<HashSet<_>>();
 
         let n2 = self.names.clone();
 
