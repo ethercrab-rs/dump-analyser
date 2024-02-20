@@ -2,11 +2,12 @@ use std::path::PathBuf;
 
 use dump_analyser::PcapFile;
 use eframe::egui;
-use egui_plot::{Legend, Line, Plot, PlotPoints};
+use egui_plot::{Legend, Line, Plot, PlotBounds, PlotPoints};
 
 #[derive(Default)]
 struct MyApp {
     plots: Vec<[f64; 2]>,
+    prev_bounds: Option<PlotBounds>,
 }
 
 impl eframe::App for MyApp {
@@ -25,8 +26,6 @@ impl eframe::App for MyApp {
                 });
             });
 
-        let mut plot_rect = None;
-
         egui::CentralPanel::default().show(ctx, |ui| {
             if ui.button("Save Plot").clicked() {
                 ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot);
@@ -34,25 +33,56 @@ impl eframe::App for MyApp {
 
             let my_plot = Plot::new("My Plot").legend(Legend::default());
 
-            // let's create a dummy line in the plot
-            // let graph: Vec<[f64; 2]> = vec![[0.0, 1.0], [2.0, 3.0], [3.0, 2.0]];
-            let inner = my_plot.show(ui, |plot_ui| {
-                plot_ui.line(Line::new(PlotPoints::new(self.plots.clone())).name("curve"));
+            // Perf: https://github.com/emilk/egui/pull/3849
+            my_plot.show(ui, |plot_ui| {
+                let plot_bounds = plot_ui.plot_bounds();
+
+                let points = if let Some(_) = self.prev_bounds {
+                    let start_count = plot_bounds.min()[0] as usize;
+                    let end_count = (plot_bounds.max()[0] as usize).min(self.plots.len());
+
+                    let display_range = start_count..end_count;
+
+                    let values_width = plot_bounds.width();
+
+                    let pixels_width = {
+                        plot_ui.screen_from_plot(plot_bounds.max().into())[0]
+                            - plot_ui.screen_from_plot(plot_bounds.min().into())[0]
+                    } as f64;
+
+                    let stride = (values_width / pixels_width).max(1.0) as usize;
+
+                    self.plots[display_range]
+                        .chunks(stride)
+                        .into_iter()
+                        .map(|chunk| {
+                            let ys = chunk.iter().map(|[_x, y]| *y);
+                            let xs = chunk.iter().map(|[x, _y]| *x);
+
+                            // Put X coord in middle of chunk
+                            let x = xs.clone().sum::<f64>() / stride as f64;
+
+                            [
+                                [
+                                    x,
+                                    ys.clone()
+                                        .min_by(|a, b| (*a as u32).cmp(&(*b as u32)))
+                                        .unwrap(),
+                                ],
+                                [x, ys.max_by(|a, b| (*a as u32).cmp(&(*b as u32))).unwrap()],
+                            ]
+                        })
+                        .flatten()
+                        .collect::<Vec<_>>()
+                } else {
+                    self.plots.clone()
+                };
+
+                plot_ui.line(Line::new(PlotPoints::new(points)).name("curve"));
+
+                self.prev_bounds = Some(plot_bounds);
             });
-
-            // Remember the position of the plot
-            plot_rect = Some(inner.response.rect);
         });
-
-        // // Check for returned screenshot:
-        // let screenshot = ctx.input(|i| {
-        //     for event in &i.raw.events {
-        //         if let egui::Event::Screenshot { image, .. } = event {
-        //             return Some(image.clone());
-        //         }
-        //     }
-        //     None
-        // });
     }
 }
 
@@ -76,6 +106,11 @@ fn main() -> Result<(), eframe::Error> {
     eframe::run_native(
         "eframe template",
         native_options,
-        Box::new(|cc| Box::new(MyApp { plots: graph })),
+        Box::new(|cc| {
+            Box::new(MyApp {
+                plots: graph,
+                prev_bounds: None,
+            })
+        }),
     )
 }
