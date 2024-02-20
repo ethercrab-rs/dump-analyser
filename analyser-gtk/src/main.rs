@@ -16,7 +16,7 @@ use std::error::Error;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 const GLADE_UI_SOURCE: &'static str = include_str!("ui.glade");
 
@@ -41,6 +41,8 @@ impl AppState {
         let mut series = Vec::new();
 
         for (colour_idx, file) in self.files.selected_paths().enumerate() {
+            let start = Instant::now();
+
             let display_name = file.file_stem().unwrap().to_string_lossy().to_string();
             let pairs = PcapFile::new(file).match_tx_rx();
 
@@ -58,9 +60,15 @@ impl AppState {
                     }),
                     Palette9999::pick(colour_idx),
                 ),
-                display_name,
+                display_name.clone(),
                 colour_idx,
             ));
+
+            println!(
+                "Processed {} in {} us",
+                display_name,
+                start.elapsed().as_micros()
+            );
         }
 
         let mut chart = ChartBuilder::on(&root)
@@ -77,6 +85,8 @@ impl AppState {
             .y_desc("Packet round trip time (ns)")
             .draw()?;
 
+        let start = Instant::now();
+
         for (s, label, colour_idx) in series.into_iter() {
             chart.draw_series(s)?.label(&label).legend(move |(x, y)| {
                 let c = Palette9999::pick(colour_idx);
@@ -85,13 +95,23 @@ impl AppState {
             });
         }
 
+        println!("Drew series in {} us", start.elapsed().as_micros());
+
+        let start = Instant::now();
+
         chart
             .configure_series_labels()
             .position(SeriesLabelPosition::UpperRight)
             .border_style(&BLACK)
             .draw()?;
 
+        println!("Drew chart in {} us", start.elapsed().as_micros());
+
+        let start = Instant::now();
+
         root.present()?;
+
+        println!("Present in {} us", start.elapsed().as_micros());
 
         Ok(())
     }
@@ -112,6 +132,8 @@ impl AppState {
         let mut series = Vec::new();
 
         for (colour_idx, file) in self.files.selected_paths().enumerate() {
+            let start = Instant::now();
+
             let display_name = file.file_stem().unwrap().to_string_lossy().to_string();
             let pairs = PcapFile::new(file).match_tx_rx();
 
@@ -131,9 +153,15 @@ impl AppState {
                     }),
                     Palette9999::pick(colour_idx),
                 ),
-                display_name,
+                display_name.clone(),
                 colour_idx,
             ));
+
+            println!(
+                "Processed cycle delta {} in {} us",
+                display_name,
+                start.elapsed().as_micros()
+            );
         }
 
         let mut chart = ChartBuilder::on(&root)
