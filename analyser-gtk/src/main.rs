@@ -9,7 +9,7 @@ use notify_debouncer_full::notify::event::{AccessKind, AccessMode, CreateKind, R
 use notify_debouncer_full::notify::{Event, EventKind, RecursiveMode, Watcher};
 use notify_debouncer_full::{DebounceEventResult, DebouncedEvent};
 use plotters::prelude::*;
-use plotters::style::full_palette;
+use plotters::style::full_palette::GREY_500;
 use plotters_cairo::CairoBackend;
 use std::cell::RefCell;
 use std::error::Error;
@@ -32,7 +32,7 @@ impl AppState {
     ) -> Result<(), Box<dyn Error + 'a>> {
         let root = backend.into_drawing_area();
 
-        root.fill(&WHITE)?;
+        root.fill(&GREY_500)?;
 
         let mut max_points = 0;
         let mut min_delta = 0;
@@ -40,7 +40,7 @@ impl AppState {
 
         let mut series = Vec::new();
 
-        for file in self.files.selected_paths() {
+        for (colour_idx, file) in self.files.selected_paths().enumerate() {
             let display_name = file.file_stem().unwrap().to_string_lossy().to_string();
             let pairs = PcapFile::new(file).match_tx_rx();
 
@@ -56,9 +56,10 @@ impl AppState {
 
                         (i as f32, t as f32)
                     }),
-                    &full_palette::DEEPORANGE,
+                    Palette9999::pick(colour_idx),
                 ),
                 display_name,
+                colour_idx,
             ));
         }
 
@@ -76,12 +77,12 @@ impl AppState {
             .y_desc("Packet round trip time (ns)")
             .draw()?;
 
-        for (s, label) in series {
-            chart
-                .draw_series(s)?
-                .label(&label)
-                // TODO: Pass palette through
-                .legend(|(x, y)| Rectangle::new([(x, y + 1), (x + 8, y)], full_palette::GREEN));
+        for (s, label, colour_idx) in series.into_iter() {
+            chart.draw_series(s)?.label(&label).legend(move |(x, y)| {
+                let c = Palette9999::pick(colour_idx);
+
+                Rectangle::new([(x, y + 1), (x + 8, y)], c)
+            });
         }
 
         chart
@@ -102,7 +103,7 @@ impl AppState {
     ) -> Result<(), Box<dyn Error + 'a>> {
         let root = backend.into_drawing_area();
 
-        root.fill(&WHITE)?;
+        root.fill(&GREY_500)?;
 
         let mut max_points = 0;
         let mut min_delta = 0;
@@ -110,7 +111,7 @@ impl AppState {
 
         let mut series = Vec::new();
 
-        for file in self.files.selected_paths() {
+        for (colour_idx, file) in self.files.selected_paths().enumerate() {
             let display_name = file.file_stem().unwrap().to_string_lossy().to_string();
             let pairs = PcapFile::new(file).match_tx_rx();
 
@@ -128,9 +129,10 @@ impl AppState {
 
                         (i as f32, t as f32)
                     }),
-                    &full_palette::DEEPORANGE,
+                    Palette9999::pick(colour_idx),
                 ),
                 display_name,
+                colour_idx,
             ));
         }
 
@@ -151,12 +153,16 @@ impl AppState {
             .y_desc("Cycle-cycle delta (ns)")
             .draw()?;
 
-        for (s, label) in series {
+        for (s, label, colour_idx) in series {
             chart
                 .draw_series(s)?
                 .label(&label)
                 // TODO: Pass palette through
-                .legend(|(x, y)| Rectangle::new([(x, y + 1), (x + 8, y)], full_palette::GREEN));
+                .legend(move |(x, y)| {
+                    let c = Palette9999::pick(colour_idx);
+
+                    Rectangle::new([(x, y + 1), (x + 8, y)], c)
+                });
         }
 
         chart
