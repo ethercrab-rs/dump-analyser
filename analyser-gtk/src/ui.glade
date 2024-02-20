@@ -4,8 +4,8 @@
   <requires lib="gtk+" version="3.24"/>
   <object class="GtkApplicationWindow" id="MainWindow">
     <property name="can-focus">False</property>
-    <property name="default-width">960</property>
-    <property name="default-height">480</property>
+    <property name="default-width">1920</property>
+    <property name="default-height">1024</property>
     <child>
       <object class="GtkPaned">
         <property name="visible">True</property>
