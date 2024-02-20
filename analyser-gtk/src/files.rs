@@ -1,23 +1,25 @@
-use gio::glib::{self, ToValue};
+use gio::glib::{self};
 use gtk::prelude::*;
-use notify_debouncer_full::{new_debouncer, notify::*, DebounceEventResult, Debouncer, FileIdMap};
 use std::{
-    collections::HashSet,
+    collections::{HashMap, HashSet},
     fs,
     path::{Path, PathBuf},
-    time::Duration,
 };
 
 #[repr(u16)]
-enum Columns {
+pub enum Columns {
     Test,
 }
 
 const DUMP_LIST_COL_TYPES: &[glib::Type] = &[glib::Type::STRING];
 
+struct Item {
+    // TODO
+}
+
 pub struct DumpFiles {
     store: gtk::ListStore,
-    names: HashSet<PathBuf>,
+    names: HashMap<PathBuf, Item>,
 }
 
 impl DumpFiles {
@@ -26,7 +28,7 @@ impl DumpFiles {
 
         let mut self_ = Self {
             store: gtk::ListStore::new(DUMP_LIST_COL_TYPES),
-            names: HashSet::new(),
+            names: HashMap::new(),
         };
 
         let paths = fs::read_dir(path)
@@ -67,7 +69,7 @@ impl DumpFiles {
             })
             .collect::<HashSet<_>>();
 
-        let n2 = self.names.clone();
+        let n2 = self.names.keys().cloned().collect::<HashSet<_>>();
 
         let new = paths.difference(&n2);
 
@@ -76,7 +78,7 @@ impl DumpFiles {
 
             let display_name = p.as_ref();
 
-            self.names.insert(path.clone());
+            self.names.insert(path.clone(), Item {});
 
             self.store.set(
                 &self.store.append(),
@@ -92,8 +94,6 @@ impl DumpFiles {
             let display_name = p.as_ref();
 
             self.names.remove(&path);
-
-            // self.store.remove();
 
             if let Some(it) = self.store.iter_first() {
                 loop {
