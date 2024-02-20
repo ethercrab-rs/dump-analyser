@@ -59,6 +59,8 @@ pub struct PcapFile {
 
     /// Packet number from Wireshark capture.
     pub packet_number: usize,
+
+    pub scenario: String,
 }
 
 impl Iterator for PcapFile {
@@ -83,6 +85,7 @@ impl PcapFile {
         Self {
             capture_file,
             packet_number: 0,
+            scenario: path.file_stem().unwrap().to_string_lossy().to_string(),
         }
     }
 
@@ -124,5 +127,43 @@ impl PcapFile {
         }
 
         None
+    }
+
+    pub fn match_tx_rx(&mut self) -> Vec<PduStat> {
+        let mut start_offset = None;
+
+        let mut pairs = Vec::new();
+
+        while let Some(packet) = self.next_line() {
+            let start_offset = *start_offset.get_or_insert(packet.time);
+
+            // Newly sent PDU
+            if packet.from_master {
+                pairs.push(PduStat {
+                    scenario: self.scenario.clone(),
+                    packet_number: packet.wireshark_packet_number,
+                    index: packet.index,
+                    tx_time: packet.time - start_offset,
+                    rx_time: Duration::default(),
+                    delta_time: Duration::default(),
+                    command: packet.command.to_string(),
+                });
+            }
+            // Response to existing sent PDU
+            else {
+                // Find last sent PDU with this receive PDU's same index
+                let sent = pairs
+                    .iter_mut()
+                    .rev()
+                    .find(|stat| stat.index == packet.index)
+                    .expect("Could not find sent packet");
+
+                sent.rx_time = packet.time - start_offset;
+
+                sent.delta_time = sent.rx_time - sent.tx_time;
+            }
+        }
+
+        pairs
     }
 }

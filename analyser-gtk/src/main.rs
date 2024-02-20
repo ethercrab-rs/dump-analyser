@@ -1,5 +1,6 @@
 mod files;
 
+use dump_analyser::PcapFile;
 use files::DumpFiles;
 use futures::StreamExt;
 use gio::glib;
@@ -11,11 +12,9 @@ use plotters::prelude::*;
 use plotters::style::full_palette;
 use plotters_cairo::CairoBackend;
 use std::cell::RefCell;
-use std::collections::HashSet;
 use std::error::Error;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
-use std::sync::{Arc, RwLock};
 use std::thread;
 use std::time::Duration;
 
@@ -26,13 +25,148 @@ struct AppState {
 }
 
 impl AppState {
-    fn draw_charts<'a, DB: DrawingBackend + 'a>(
+    /// Plot packet TX/RX round trip time.
+    fn plot_roundtrip_times<'a, DB: DrawingBackend + 'a>(
         &self,
         backend: DB,
     ) -> Result<(), Box<dyn Error + 'a>> {
-        //
+        let root = backend.into_drawing_area();
 
-        // root.present()?;
+        root.fill(&WHITE)?;
+
+        let mut max_points = 0;
+        let mut min_delta = 0;
+        let mut max_delta = 0;
+
+        let mut series = Vec::new();
+
+        for file in self.files.selected_paths() {
+            let display_name = file.file_stem().unwrap().to_string_lossy().to_string();
+            let pairs = PcapFile::new(file).match_tx_rx();
+
+            max_points = max_points.max(pairs.len());
+
+            series.push((
+                LineSeries::new(
+                    pairs.into_iter().enumerate().map(|(i, stat)| {
+                        let t = stat.delta_time.as_nanos();
+
+                        min_delta = min_delta.min(t);
+                        max_delta = max_delta.max(t);
+
+                        (i as f32, t as f32)
+                    }),
+                    &full_palette::DEEPORANGE,
+                ),
+                display_name,
+            ));
+        }
+
+        let mut chart = ChartBuilder::on(&root)
+            .caption("Packet round trip times", ("sans-serif", 16).into_font())
+            .margin(5)
+            .x_label_area_size(30)
+            .y_label_area_size(30)
+            .build_cartesian_2d(0.0..max_points as f32, min_delta as f32..max_delta as f32)?;
+
+        chart
+            .configure_mesh()
+            .max_light_lines(0)
+            .x_desc("Packet number")
+            .y_desc("Packet round trip time (ns)")
+            .draw()?;
+
+        for (s, label) in series {
+            chart
+                .draw_series(s)?
+                .label(&label)
+                // TODO: Pass palette through
+                .legend(|(x, y)| Rectangle::new([(x, y + 1), (x + 8, y)], full_palette::GREEN));
+        }
+
+        chart
+            .configure_series_labels()
+            .position(SeriesLabelPosition::UpperRight)
+            .border_style(&BLACK)
+            .draw()?;
+
+        root.present()?;
+
+        Ok(())
+    }
+
+    /// Plot previous packet to current packet TX delta.
+    fn plot_cycle_delta<'a, DB: DrawingBackend + 'a>(
+        &self,
+        backend: DB,
+    ) -> Result<(), Box<dyn Error + 'a>> {
+        let root = backend.into_drawing_area();
+
+        root.fill(&WHITE)?;
+
+        let mut max_points = 0;
+        let mut min_delta = 0;
+        let mut max_delta = 0;
+
+        let mut series = Vec::new();
+
+        for file in self.files.selected_paths() {
+            let display_name = file.file_stem().unwrap().to_string_lossy().to_string();
+            let pairs = PcapFile::new(file).match_tx_rx();
+
+            max_points = max_points.max(pairs.len());
+
+            series.push((
+                LineSeries::new(
+                    pairs.windows(2).into_iter().enumerate().map(|(i, stats)| {
+                        let [prev, curr] = stats else { unreachable!() };
+
+                        let t = curr.tx_time.as_nanos() - prev.tx_time.as_nanos();
+
+                        min_delta = min_delta.min(t);
+                        max_delta = max_delta.max(t);
+
+                        (i as f32, t as f32)
+                    }),
+                    &full_palette::DEEPORANGE,
+                ),
+                display_name,
+            ));
+        }
+
+        let mut chart = ChartBuilder::on(&root)
+            .caption(
+                "Cycle to cycle packet TX delta",
+                ("sans-serif", 16).into_font(),
+            )
+            .margin(5)
+            .x_label_area_size(40)
+            .y_label_area_size(30)
+            .build_cartesian_2d(0.0..max_points as f32, min_delta as f32..max_delta as f32)?;
+
+        chart
+            .configure_mesh()
+            .max_light_lines(0)
+            .x_desc("Packet number")
+            .y_desc("Cycle-cycle delta (ns)")
+            .draw()?;
+
+        for (s, label) in series {
+            chart
+                .draw_series(s)?
+                .label(&label)
+                // TODO: Pass palette through
+                .legend(|(x, y)| Rectangle::new([(x, y + 1), (x + 8, y)], full_palette::GREEN));
+        }
+
+        chart
+            .configure_series_labels()
+            .position(SeriesLabelPosition::UpperRight)
+            .border_style(&BLACK)
+            .draw()?;
+
+        root.present()?;
+
         Ok(())
     }
 }
@@ -58,11 +192,11 @@ fn build_ui(app: &gtk::Application) {
         .object::<gtk::TreeView>("DumpTree")
         .expect("DumpTree");
 
-    let mut cycle_delta_chart = builder
+    let cycle_delta_chart = builder
         .object::<gtk::DrawingArea>("CycleDeltaChart")
         .expect("CycleDeltaChart");
 
-    let mut round_trip_chart = builder
+    let round_trip_chart = builder
         .object::<gtk::DrawingArea>("RoundTripChart")
         .expect("RoundTripChart");
 
@@ -78,6 +212,36 @@ fn build_ui(app: &gtk::Application) {
     round_trip_chart.connect_motion_notify_event(move |_widget, _cr| {
         // TODO: Find a way to get value from chart. This method is currently a noop but it was a
         // bit challenging to get it working so I'll leave it in.
+
+        Inhibit(false)
+    });
+
+    // ---
+
+    let state_cloned = app_state.clone();
+    round_trip_chart.connect_draw(move |widget, cr| {
+        let state = state_cloned.borrow();
+
+        let w = widget.allocated_width();
+        let h = widget.allocated_height();
+
+        let backend = CairoBackend::new(cr, (w as u32, h as u32)).unwrap();
+
+        state.plot_roundtrip_times(backend).unwrap();
+
+        Inhibit(false)
+    });
+
+    let state_cloned = app_state.clone();
+    cycle_delta_chart.connect_draw(move |widget, cr| {
+        let state = state_cloned.borrow();
+
+        let w = widget.allocated_width();
+        let h = widget.allocated_height();
+
+        let backend = CairoBackend::new(cr, (w as u32, h as u32)).unwrap();
+
+        state.plot_cycle_delta(backend).unwrap();
 
         Inhibit(false)
     });
@@ -112,6 +276,7 @@ fn build_ui(app: &gtk::Application) {
 
     app_state.borrow_mut().files.init_view(&mut dump_tree);
 
+    let state_cloned = app_state.clone();
     glib::MainContext::default().spawn_local(async move {
         println!("Start watch future");
 
@@ -129,7 +294,7 @@ fn build_ui(app: &gtk::Application) {
                     } => {
                         println!("Files created {:?}", paths);
 
-                        app_state.borrow_mut().files.update_items(paths);
+                        state_cloned.borrow_mut().files.update_items(paths);
                     }
                     DebouncedEvent {
                         event:
@@ -142,7 +307,7 @@ fn build_ui(app: &gtk::Application) {
                     } => {
                         println!("Files deleted {:?}", paths);
 
-                        app_state.borrow_mut().files.remove_items(paths);
+                        state_cloned.borrow_mut().files.remove_items(paths);
                     }
 
                     DebouncedEvent {
@@ -164,17 +329,25 @@ fn build_ui(app: &gtk::Application) {
     let dump_selection = dump_tree.selection();
     dump_selection.set_mode(gtk::SelectionMode::Multiple);
 
+    let state_cloned = app_state.clone();
     dump_selection.connect_changed(move |selection| {
-        println!("Selected");
+        let mut selected = Vec::new();
 
         selection.selected_foreach(|model, _path, iter| {
-            let test_value: String = model
-                .value(&iter, files::Columns::FullPath as i32)
-                .get_owned()
-                .expect("Not a string");
+            let path = PathBuf::from(
+                model
+                    .value(&iter, files::Columns::FullPath as i32)
+                    .get_owned::<String>()
+                    .expect("Not a string"),
+            );
 
-            println!("--> {}", test_value);
+            selected.push(path);
         });
+
+        state_cloned.borrow_mut().files.update_selection(selected);
+
+        cycle_delta_chart.queue_draw();
+        round_trip_chart.queue_draw();
     });
 
     window.show_all();

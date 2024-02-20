@@ -10,6 +10,7 @@ futures = "0.3.30"
 gio = "0.17.0"
 gtk = "0.17.0"
 notify-debouncer-full = "0.3.1"
+dump-analyser = { path = "../analyser" }
 
 # Rev makes it work with plotters-cairo below
 plotters = { git = "https://github.com/plotters-rs/plotters.git", default-features = false, features = [
@@ -19,6 +20,3 @@ plotters = { git = "https://github.com/plotters-rs/plotters.git", default-featur
 
 # Cairo 0.17 upgrade
 plotters-cairo = { git = "https://github.com/plotters-rs/plotters-cairo.git", rev = "515ab36f59ff28f1c0db7d98b410d51a7bbf9677" }
-
-[dev-dependencies]
-cairo-rs = "0.17.0"

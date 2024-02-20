@@ -15,7 +15,7 @@ pub enum Columns {
 const DUMP_LIST_COL_TYPES: &[glib::Type] = &[glib::Type::STRING, glib::Type::STRING];
 
 struct Item {
-    // TODO
+    selected: bool,
 }
 
 pub struct DumpFiles {
@@ -91,7 +91,7 @@ impl DumpFiles {
 
             let display_name = p.as_ref();
 
-            self.names.insert(path.clone(), Item {});
+            self.names.insert(path.clone(), Item { selected: false });
 
             self.store.set(
                 &self.store.append(),
@@ -133,5 +133,23 @@ impl DumpFiles {
                 println!("No it???")
             }
         }
+    }
+
+    pub fn update_selection(&mut self, selected: Vec<PathBuf>) {
+        self.names
+            .values_mut()
+            .for_each(|value| value.selected = false);
+
+        for path in selected {
+            if let Some(item) = self.names.get_mut(&path) {
+                item.selected = true;
+            }
+        }
+    }
+
+    pub fn selected_paths(&self) -> impl Iterator<Item = &PathBuf> {
+        self.names
+            .iter()
+            .filter_map(|(k, v)| if v.selected { Some(k) } else { None })
     }
 }
