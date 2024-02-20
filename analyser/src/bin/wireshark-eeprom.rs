@@ -22,6 +22,25 @@ pub struct Args {
     pub file: PathBuf,
 }
 
+fn command_register(command: &Command) -> Option<u16> {
+    match command {
+        Command::Nop => None,
+        Command::Read(read) => match read {
+            Reads::Aprd { register, .. }
+            | Reads::Fprd { register, .. }
+            | Reads::Brd { register, .. }
+            | Reads::Frmw { register, .. } => Some(*register),
+            Reads::Lrd { .. } => None,
+        },
+        Command::Write(write) => match write {
+            Writes::Bwr { register, .. }
+            | Writes::Apwr { register, .. }
+            | Writes::Fpwr { register, .. } => Some(*register),
+            Writes::Lwr { .. } | Writes::Lrw { .. } => None,
+        },
+    }
+}
+
 fn main() -> Result<(), ethercrab::error::Error> {
     let args = Args::parse();
 
@@ -53,7 +72,7 @@ fn main() -> Result<(), ethercrab::error::Error> {
             _ => continue,
         };
 
-        let register = packet.command.register().filter(|r| {
+        let register = command_register(&packet.command).filter(|r| {
             [
                 u16::from(RegisterAddress::SiiConfig),
                 u16::from(RegisterAddress::SiiControl),
