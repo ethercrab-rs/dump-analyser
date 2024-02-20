@@ -1,6 +1,6 @@
 mod files;
 
-use files::init_list;
+use files::DumpFiles;
 use gio::glib;
 use gtk::{gdk::EventMask, prelude::*};
 use plotters::prelude::*;
@@ -53,7 +53,9 @@ fn build_ui(app: &gtk::Application) {
         .object::<gtk::DrawingArea>("RoundTripChart")
         .expect("RoundTripChart");
 
-    let dump_store = init_list(&mut dump_tree);
+    let mut files = DumpFiles::new();
+
+    files.init_view(&mut dump_tree);
 
     let dump_selection = dump_tree.selection();
     dump_selection.set_mode(gtk::SelectionMode::Multiple);

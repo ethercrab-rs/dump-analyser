@@ -7,24 +7,36 @@ enum Columns {
 
 const DUMP_LIST_COL_TYPES: &[glib::Type] = &[glib::Type::STRING];
 
-pub fn init_list(dump_tree: &mut gtk::TreeView) -> gtk::ListStore {
-    let dump_list_store = gtk::ListStore::new(DUMP_LIST_COL_TYPES);
+pub struct DumpFiles {
+    store: gtk::ListStore,
+}
 
-    dump_tree.set_model(Some(&dump_list_store));
-
-    // Add a test column
-    {
-        let renderer = gtk::CellRendererText::new();
-        let column = gtk::TreeViewColumn::new();
-        TreeViewColumnExt::pack_start(&column, &renderer, true);
-        column.set_title("Testing");
-        TreeViewColumnExt::add_attribute(&column, &renderer, "text", Columns::Test as i32);
-        column.set_sort_column_id(Columns::Test as i32);
-        dump_tree.append_column(&column);
+impl DumpFiles {
+    pub fn new() -> Self {
+        Self {
+            store: gtk::ListStore::new(DUMP_LIST_COL_TYPES),
+        }
     }
 
-    dump_list_store.set(&dump_list_store.append(), &[(0u32, &"Hello world")]);
-    dump_list_store.set(&dump_list_store.append(), &[(0u32, &"Another row")]);
+    /// Only call this once.
+    pub fn init_view(&self, tree: &mut gtk::TreeView) {
+        tree.set_model(Some(&self.store));
 
-    dump_list_store
+        // Add a test column
+        {
+            let renderer = gtk::CellRendererText::new();
+            let column = gtk::TreeViewColumn::new();
+            TreeViewColumnExt::pack_start(&column, &renderer, true);
+            column.set_title("Testing");
+            TreeViewColumnExt::add_attribute(&column, &renderer, "text", Columns::Test as i32);
+            column.set_sort_column_id(Columns::Test as i32);
+            tree.append_column(&column);
+        }
+    }
+
+    // TODO: Item type that isn't just `String`.
+    pub fn add_item(&self, item: String) {
+        self.store
+            .set(&self.store.append(), &[(0u32, &"Hello world")]);
+    }
 }
