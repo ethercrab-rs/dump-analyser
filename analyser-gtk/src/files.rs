@@ -7,7 +7,7 @@ enum Columns {
 
 const DUMP_LIST_COL_TYPES: &[glib::Type] = &[glib::Type::STRING];
 
-pub fn init_list(dump_tree: &mut gtk::TreeView) {
+pub fn init_list(dump_tree: &mut gtk::TreeView) -> gtk::ListStore {
     let dump_list_store = gtk::ListStore::new(DUMP_LIST_COL_TYPES);
 
     dump_tree.set_model(Some(&dump_list_store));
@@ -23,7 +23,8 @@ pub fn init_list(dump_tree: &mut gtk::TreeView) {
         dump_tree.append_column(&column);
     }
 
-    let values: [(u32, &dyn ToValue); 1] = [(0u32, &"Hello world")];
+    dump_list_store.set(&dump_list_store.append(), &[(0u32, &"Hello world")]);
+    dump_list_store.set(&dump_list_store.append(), &[(0u32, &"Another row")]);
 
-    dump_list_store.set(&dump_list_store.append(), &values);
+    dump_list_store
 }

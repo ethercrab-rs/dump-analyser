@@ -45,7 +45,50 @@ fn build_ui(app: &gtk::Application) {
         .object::<gtk::TreeView>("DumpTree")
         .expect("DumpTree");
 
-    init_list(&mut dump_tree);
+    let mut cycle_delta_chart = builder
+        .object::<gtk::DrawingArea>("CycleDeltaChart")
+        .expect("CycleDeltaChart");
+
+    let mut round_trip_chart = builder
+        .object::<gtk::DrawingArea>("RoundTripChart")
+        .expect("RoundTripChart");
+
+    let dump_store = init_list(&mut dump_tree);
+
+    let dump_selection = dump_tree.selection();
+    dump_selection.set_mode(gtk::SelectionMode::Multiple);
+
+    dump_selection.connect_changed(move |selection| {
+        println!("Selected");
+
+        selection.selected_foreach(|model, _path, iter| {
+            let test_value: String = model.value(&iter, 0).get_owned().expect("Not a string");
+
+            println!("--> {}", test_value);
+        });
+
+        // if let Some((model, iter)) = selection.selected() {
+        //     // let mut path = dump_store.path(&iter).expect("Couldn't get path");
+
+        //     // dbg!(path);
+        //     // // get the top-level element path
+        //     // while path.depth() > 1 {
+        //     //     path.up();
+        //     // }
+
+        //     while let Some(iter) = model.iter_first() {
+        //         dbg!(dump_store.iter_is_valid(&iter));
+
+        //         dbg!(model.value(&iter, 0).get_owned::<String>());
+
+        //         model.iter_next(&iter);
+        //     }
+        // }
+    });
+
+    // dump_tree.connect_row_deactivated(|tree, path, column| {
+    //     println!("Deactivated");
+    // });
 
     // let state_cloned = app_state.clone();
     // drawing_area.connect_draw(move |widget, cr| {
