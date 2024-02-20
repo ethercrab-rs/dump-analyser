@@ -1,0 +1,26 @@
+[package]
+name = "analyser-gtk"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+cairo-rs = "0.17.0"
+gio = "0.17.0"
+gtk = "0.17.0"
+kiss3d = "0.35.0"
+nalgebra = { version = "0.30", default-features = false, features = [
+    "std",
+    "rand",
+] }
+
+# Rev makes it work with plotters-cairo below
+plotters = { git = "https://github.com/plotters-rs/plotters.git", default_features = false, features = [
+    "line_series",
+    "full_palette",
+] }
+
+# Cairo 0.17 upgrade
+plotters-cairo = { git = "https://github.com/plotters-rs/plotters-cairo.git", rev = "515ab36f59ff28f1c0db7d98b410d51a7bbf9677" }
+
+[dev-dependencies]
+cairo-rs = "0.17.0"
