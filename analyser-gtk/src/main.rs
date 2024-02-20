@@ -22,7 +22,7 @@ use std::time::Duration;
 const GLADE_UI_SOURCE: &'static str = include_str!("ui.glade");
 
 struct AppState {
-    //
+    files: DumpFiles,
 }
 
 impl AppState {
@@ -46,7 +46,11 @@ fn build_ui(app: &gtk::Application) {
     window.set_title("EtherCrab packet dump analyser");
     window.set_events(window.events() | EventMask::POINTER_MOTION_MASK);
 
-    let app_state = Rc::new(RefCell::new(AppState {}));
+    let dumps_path = Path::new("./dumps");
+
+    let app_state = Rc::new(RefCell::new(AppState {
+        files: DumpFiles::new(&dumps_path),
+    }));
 
     window.set_application(Some(app));
 
@@ -62,7 +66,23 @@ fn build_ui(app: &gtk::Application) {
         .object::<gtk::DrawingArea>("RoundTripChart")
         .expect("RoundTripChart");
 
-    let dumps_path = Path::new("./dumps");
+    cycle_delta_chart.set_events(cycle_delta_chart.events() | EventMask::POINTER_MOTION_MASK);
+    cycle_delta_chart.connect_motion_notify_event(move |_widget, _cr| {
+        // TODO: Find a way to get value from chart. This method is currently a noop but it was a
+        // bit challenging to get it working so I'll leave it in.
+
+        Inhibit(false)
+    });
+
+    round_trip_chart.set_events(round_trip_chart.events() | EventMask::POINTER_MOTION_MASK);
+    round_trip_chart.connect_motion_notify_event(move |_widget, _cr| {
+        // TODO: Find a way to get value from chart. This method is currently a noop but it was a
+        // bit challenging to get it working so I'll leave it in.
+
+        Inhibit(false)
+    });
+
+    // ---
 
     let (tx, mut rx) = futures::channel::mpsc::unbounded();
 
@@ -90,9 +110,7 @@ fn build_ui(app: &gtk::Application) {
         }
     });
 
-    let mut files = Arc::new(RwLock::new(DumpFiles::new(&dumps_path)));
-
-    files.write().unwrap().init_view(&mut dump_tree);
+    app_state.borrow_mut().files.init_view(&mut dump_tree);
 
     glib::MainContext::default().spawn_local(async move {
         println!("Start watch future");
@@ -111,7 +129,7 @@ fn build_ui(app: &gtk::Application) {
                     } => {
                         println!("Files created {:?}", paths);
 
-                        files.write().unwrap().update_items(paths);
+                        app_state.borrow_mut().files.update_items(paths);
                     }
                     DebouncedEvent {
                         event:
@@ -124,7 +142,7 @@ fn build_ui(app: &gtk::Application) {
                     } => {
                         println!("Files deleted {:?}", paths);
 
-                        files.write().unwrap().remove_items(paths);
+                        app_state.borrow_mut().files.remove_items(paths);
                     }
 
                     DebouncedEvent {
