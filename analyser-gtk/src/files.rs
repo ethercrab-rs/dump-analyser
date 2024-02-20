@@ -8,10 +8,11 @@ use std::{
 
 #[repr(u16)]
 pub enum Columns {
+    FullPath,
     Test,
 }
 
-const DUMP_LIST_COL_TYPES: &[glib::Type] = &[glib::Type::STRING];
+const DUMP_LIST_COL_TYPES: &[glib::Type] = &[glib::Type::STRING, glib::Type::STRING];
 
 struct Item {
     // TODO
@@ -49,7 +50,19 @@ impl DumpFiles {
     pub fn init_view(&self, tree: &mut gtk::TreeView) {
         tree.set_model(Some(&self.store));
 
-        // Add a test column
+        // Full path, not visible but use to retrieve values
+        {
+            // let renderer = gtk::CellRendererText::new();
+            let column = gtk::TreeViewColumn::new();
+            // TreeViewColumnExt::pack_start(&column, &renderer, true);
+            column.set_title("File path");
+            // TreeViewColumnExt::add_attribute(&column, &renderer, "text", Columns::FullPath as i32);
+            column.set_sort_column_id(Columns::FullPath as i32);
+            column.set_visible(false);
+            tree.append_column(&column);
+        }
+
+        // File stem, aka display name
         {
             let renderer = gtk::CellRendererText::new();
             let column = gtk::TreeViewColumn::new();
@@ -82,7 +95,10 @@ impl DumpFiles {
 
             self.store.set(
                 &self.store.append(),
-                &[(Columns::Test as u32, &display_name)],
+                &[
+                    (Columns::FullPath as u32, &path),
+                    (Columns::Test as u32, &display_name),
+                ],
             );
         }
     }

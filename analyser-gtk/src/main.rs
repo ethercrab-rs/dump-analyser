@@ -151,7 +151,7 @@ fn build_ui(app: &gtk::Application) {
 
         selection.selected_foreach(|model, _path, iter| {
             let test_value: String = model
-                .value(&iter, files::Columns::Test as i32)
+                .value(&iter, files::Columns::FullPath as i32)
                 .get_owned()
                 .expect("Not a string");
 
