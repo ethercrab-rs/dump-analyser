@@ -1,12 +1,14 @@
-use std::cell::RefCell;
-use std::error::Error;
-use std::rc::Rc;
+mod files;
 
+use files::init_list;
 use gio::glib;
 use gtk::{gdk::EventMask, prelude::*};
 use plotters::prelude::*;
 use plotters::style::full_palette;
 use plotters_cairo::CairoBackend;
+use std::cell::RefCell;
+use std::error::Error;
+use std::rc::Rc;
 
 const GLADE_UI_SOURCE: &'static str = include_str!("ui.glade");
 
@@ -26,13 +28,11 @@ impl AppState {
     }
 }
 
-enum Columns {
-    Test,
-}
-
 fn build_ui(app: &gtk::Application) {
     let builder = gtk::Builder::from_string(GLADE_UI_SOURCE);
-    let window = builder.object::<gtk::Window>("MainWindow").unwrap();
+    let window = builder
+        .object::<gtk::Window>("MainWindow")
+        .expect("MainWindow");
 
     window.set_title("EtherCrab packet dump analyser");
     window.set_events(window.events() | EventMask::POINTER_MOTION_MASK);
@@ -41,30 +41,11 @@ fn build_ui(app: &gtk::Application) {
 
     window.set_application(Some(app));
 
-    let dump_list_col_types = [glib::Type::STRING];
-
-    let dump_list_store = gtk::ListStore::new(&dump_list_col_types);
-
-    let dump_tree = builder
+    let mut dump_tree = builder
         .object::<gtk::TreeView>("DumpTree")
         .expect("DumpTree");
 
-    dump_tree.set_model(Some(&dump_list_store));
-
-    // Add a test column
-    {
-        let renderer = gtk::CellRendererText::new();
-        let column = gtk::TreeViewColumn::new();
-        TreeViewColumnExt::pack_start(&column, &renderer, true);
-        column.set_title("Testing");
-        TreeViewColumnExt::add_attribute(&column, &renderer, "text", Columns::Test as i32);
-        column.set_sort_column_id(Columns::Test as i32);
-        dump_tree.append_column(&column);
-    }
-
-    let values: [(u32, &dyn ToValue); 1] = [(0u32, &"Hello world")];
-
-    dump_list_store.set(&dump_list_store.append(), &values);
+    init_list(&mut dump_tree);
 
     // let state_cloned = app_state.clone();
     // drawing_area.connect_draw(move |widget, cr| {
