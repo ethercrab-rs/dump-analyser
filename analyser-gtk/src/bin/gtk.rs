@@ -1,4 +1,4 @@
-use analyser_gtk::files::{self, DumpFiles};
+use analyser_gtk::files_gtk::{self, DumpFiles};
 use dump_analyser::PcapFile;
 use futures::StreamExt;
 use gio::glib;
@@ -415,7 +415,7 @@ fn build_ui(app: &gtk::Application) {
         selection.selected_foreach(|model, _path, iter| {
             let path = PathBuf::from(
                 model
-                    .value(&iter, files::Columns::FullPath as i32)
+                    .value(&iter, files_gtk::Columns::FullPath as i32)
                     .get_owned::<String>()
                     .expect("Not a string"),
             );
