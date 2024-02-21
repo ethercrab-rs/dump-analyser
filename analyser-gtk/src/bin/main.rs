@@ -217,9 +217,11 @@ impl eframe::App for MyApp {
                                     ui.heading("Packet round trip times (us)");
                                 });
                                 strip.cell(|ui| {
-                                    Plot::new("round_trips").legend(Legend::default()).show(
-                                        ui,
-                                        |plot_ui| {
+                                    Plot::new("round_trips")
+                                        .x_axis_label("Packet number")
+                                        .y_axis_label("TX/RX round trip time (us)")
+                                        .legend(Legend::default())
+                                        .show(ui, |plot_ui| {
                                             let bounds = self.compute_bounds(plot_ui);
 
                                             for (name, series) in
@@ -231,8 +233,7 @@ impl eframe::App for MyApp {
                                                     Line::new(PlotPoints::new(points)).name(name),
                                                 );
                                             }
-                                        },
-                                    );
+                                        });
                                 });
                             });
                     });
@@ -247,9 +248,11 @@ impl eframe::App for MyApp {
                                     ui.heading("Cycle-cycle delta (us)");
                                 });
                                 strip.cell(|ui| {
-                                    Plot::new("cycle_delta").legend(Legend::default()).show(
-                                        ui,
-                                        |plot_ui| {
+                                    Plot::new("cycle_delta")
+                                        .x_axis_label("Packet number")
+                                        .y_axis_label("Cycle to cycle delta time (us)")
+                                        .legend(Legend::default())
+                                        .show(ui, |plot_ui| {
                                             let bounds = self.compute_bounds(plot_ui);
 
                                             for (name, series) in
@@ -261,8 +264,7 @@ impl eframe::App for MyApp {
                                                     Line::new(PlotPoints::new(points)).name(name),
                                                 );
                                             }
-                                        },
-                                    );
+                                        });
                                 });
                             });
                     });
