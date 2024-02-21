@@ -2,14 +2,24 @@
 
 A tool to produce statistics from Wireshark or `tshark` dumps.
 
-## Running the example
+## Analysing results
 
 ```bash
-cd concurrent-lrw
-just run <interface>
+cargo run --bin egui --release
+
 # OR
-sudo ./target/release/concurrent-lrw <interface>
+cd analyser-gui
+cargo run --release
 ```
+
+This program will load **and monitor** a folder called `./dumps` relative to its crate root (or
+binary if running standalone). Put Wireshark `.pcapng` files in that folder and they'll show up in
+the GUI for graphing.
+
+## Ignore everything below here
+
+> The Postgres method should still work, but it's not efficient. Use the new custom GUI tool
+> instead.
 
 ## Result processing
 
