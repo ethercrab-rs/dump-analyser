@@ -1,8 +1,9 @@
 use analyser_gtk::files::DumpFiles;
 use dump_analyser::PcapFile;
 use eframe::egui;
-use egui::Ui;
+use egui::{TextStyle, Ui};
 use egui_extras::{Column, TableBuilder};
+use egui_extras::{Size, StripBuilder};
 use egui_plot::{Legend, Line, Plot, PlotPoints};
 use notify_debouncer_full::{
     notify::{
@@ -199,18 +200,73 @@ impl eframe::App for MyApp {
             //     ctx.send_viewport_cmd(egui::ViewportCommand::Screenshot);
             // }
 
-            let my_plot = Plot::new("My Plot").legend(Legend::default());
+            let heading_text_size = TextStyle::Heading.resolve(ui.style()).size;
 
-            // Perf: https://github.com/emilk/egui/pull/3849
-            my_plot.show(ui, |plot_ui| {
-                let bounds = self.compute_bounds(plot_ui);
+            StripBuilder::new(ui)
+                .size(Size::remainder())
+                .size(Size::remainder())
+                .vertical(|mut strip| {
+                    strip.cell(|ui| {
+                        StripBuilder::new(ui)
+                            // Heading
+                            .size(Size::exact(heading_text_size))
+                            // Chart
+                            .size(Size::remainder())
+                            .vertical(|mut strip| {
+                                strip.cell(|ui| {
+                                    ui.heading("Packet round trip times (us)");
+                                });
+                                strip.cell(|ui| {
+                                    Plot::new("round_trips").legend(Legend::default()).show(
+                                        ui,
+                                        |plot_ui| {
+                                            let bounds = self.compute_bounds(plot_ui);
 
-                for (name, series) in self.round_trip_times.read().iter() {
-                    let points = self.aggregate(bounds, series);
+                                            for (name, series) in
+                                                self.round_trip_times.read().iter()
+                                            {
+                                                let points = self.aggregate(bounds, series);
 
-                    plot_ui.line(Line::new(PlotPoints::new(points)).name(name));
-                }
-            });
+                                                plot_ui.line(
+                                                    Line::new(PlotPoints::new(points)).name(name),
+                                                );
+                                            }
+                                        },
+                                    );
+                                });
+                            });
+                    });
+                    strip.cell(|ui| {
+                        StripBuilder::new(ui)
+                            // Heading
+                            .size(Size::exact(heading_text_size))
+                            // Chart
+                            .size(Size::remainder())
+                            .vertical(|mut strip| {
+                                strip.cell(|ui| {
+                                    ui.heading("Cycle-cycle delta (us)");
+                                });
+                                strip.cell(|ui| {
+                                    Plot::new("cycle_delta").legend(Legend::default()).show(
+                                        ui,
+                                        |plot_ui| {
+                                            let bounds = self.compute_bounds(plot_ui);
+
+                                            for (name, series) in
+                                                self.cycle_delta_times.read().iter()
+                                            {
+                                                let points = self.aggregate(bounds, series);
+
+                                                plot_ui.line(
+                                                    Line::new(PlotPoints::new(points)).name(name),
+                                                );
+                                            }
+                                        },
+                                    );
+                                });
+                            });
+                    });
+                });
         });
     }
 }
