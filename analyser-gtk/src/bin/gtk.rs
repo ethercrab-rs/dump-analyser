@@ -20,6 +20,8 @@ const GLADE_UI_SOURCE: &'static str = include_str!("ui.glade");
 
 struct AppState {
     files: DumpFiles,
+    cycle_delta_drag_start: Option<(f64, f64)>,
+    cycle_delta_drag_end: Option<(f64, f64)>,
 }
 
 impl AppState {
@@ -116,7 +118,7 @@ impl AppState {
 
     /// Plot previous packet to current packet TX delta.
     fn plot_cycle_delta<'a, DB: DrawingBackend + 'a>(
-        &self,
+        &mut self,
         backend: DB,
     ) -> Result<(), Box<dyn Error + 'a>> {
         let root = backend.into_drawing_area();
@@ -179,6 +181,14 @@ impl AppState {
             .y_desc("Cycle-cycle delta (ns)")
             .draw()?;
 
+        if let Some((start, end)) = self
+            .cycle_delta_drag_start
+            .take()
+            .zip(self.cycle_delta_drag_end.take())
+        {
+            println!("{:?} -> {:?}", start, end);
+        }
+
         for (s, label, colour_idx) in series {
             chart
                 .draw_series(s)?
@@ -216,6 +226,8 @@ fn build_ui(app: &gtk::Application) {
 
     let app_state = Rc::new(RefCell::new(AppState {
         files: DumpFiles::new(&dumps_path),
+        cycle_delta_drag_start: None,
+        cycle_delta_drag_end: None,
     }));
 
     window.set_application(Some(app));
@@ -232,10 +244,45 @@ fn build_ui(app: &gtk::Application) {
         .object::<gtk::DrawingArea>("RoundTripChart")
         .expect("RoundTripChart");
 
-    cycle_delta_chart.set_events(cycle_delta_chart.events() | EventMask::POINTER_MOTION_MASK);
+    cycle_delta_chart.set_events(
+        cycle_delta_chart.events()
+            | EventMask::POINTER_MOTION_MASK
+            | EventMask::BUTTON_PRESS_MASK
+            | EventMask::BUTTON_RELEASE_MASK,
+    );
     cycle_delta_chart.connect_motion_notify_event(move |_widget, _cr| {
-        // TODO: Find a way to get value from chart. This method is currently a noop but it was a
-        // bit challenging to get it working so I'll leave it in.
+        // NOTE: Unused, but was challenging to get working so I'll leave this handler in.
+
+        Inhibit(false)
+    });
+    let state_cloned = app_state.clone();
+    cycle_delta_chart.connect_button_press_event(move |_, cr| {
+        let mut state = state_cloned.borrow_mut();
+
+        // cr.position() is relative to drawing area
+        state.cycle_delta_drag_start = Some(cr.position());
+
+        println!("Drag begin, {:?}", cr.position());
+
+        Inhibit(false)
+    });
+    let state_cloned = app_state.clone();
+    cycle_delta_chart.connect_button_release_event(move |widget, cr| {
+        let mut state = state_cloned.borrow_mut();
+
+        // cr.position() is relative to drawing area
+        state.cycle_delta_drag_end = Some(cr.position());
+
+        println!("Drag end, {:?}", cr.position());
+
+        // let w = widget.allocated_width();
+        // let h = widget.allocated_height();
+
+        // let backend = CairoBackend::new(cr, (w as u32, h as u32)).unwrap();
+
+        // state.plot_cycle_delta(backend).unwrap();
+
+        widget.queue_draw();
 
         Inhibit(false)
     });
@@ -266,7 +313,7 @@ fn build_ui(app: &gtk::Application) {
 
     let state_cloned = app_state.clone();
     cycle_delta_chart.connect_draw(move |widget, cr| {
-        let state = state_cloned.borrow();
+        let mut state = state_cloned.borrow_mut();
 
         let w = widget.allocated_width();
         let h = widget.allocated_height();
