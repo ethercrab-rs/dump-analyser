@@ -80,10 +80,8 @@ impl DumpFiles {
         }
     }
 
-    pub fn selected_paths(&self) -> impl Iterator<Item = &PathBuf> {
-        self.names
-            .iter()
-            .filter_map(|(k, v)| if v.selected { Some(k) } else { None })
+    pub fn selected_paths(&self) -> impl Iterator<Item = &Item> {
+        self.names.values().filter(|v| v.selected)
     }
 
     pub fn all(&self) -> Vec<&Item> {

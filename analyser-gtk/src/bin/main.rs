@@ -3,7 +3,7 @@ use dump_analyser::PcapFile;
 use eframe::egui;
 use egui::Ui;
 use egui_extras::{Column, TableBuilder};
-use egui_plot::{Legend, Line, Plot, PlotBounds, PlotPoints};
+use egui_plot::{Legend, Line, Plot, PlotPoints};
 use notify_debouncer_full::{
     notify::{
         event::{AccessKind, AccessMode, CreateKind, RemoveKind},
@@ -15,8 +15,8 @@ use parking_lot::RwLock;
 use std::{path::PathBuf, sync::Arc, thread, time::Duration};
 
 struct MyApp {
-    plots: Arc<RwLock<Vec<Vec<[f64; 2]>>>>,
-    prev_bounds: Option<PlotBounds>,
+    plots: Arc<RwLock<Vec<(String, Vec<[f64; 2]>)>>>,
+    // prev_bounds: Option<PlotBounds>,
     files: Arc<RwLock<DumpFiles>>,
     // rx: tokio::sync::mpsc::UnboundedReceiver<DebounceEventResult>,
 }
@@ -47,7 +47,10 @@ impl MyApp {
                 });
             })
             .body(|mut body| {
-                for (row_index, file) in self.files.read().all().iter().enumerate() {
+                // Gotta clone to prevent deadlocks
+                let files = self.files.read().clone();
+
+                for (row_index, file) in files.all().iter().enumerate() {
                     body.row(18.0, |mut row| {
                         row.set_selected(file.selected);
 
@@ -75,13 +78,16 @@ impl MyApp {
 
         for selected_file in files.selected_paths() {
             // TODO: Read pcap files on startup/when added?
-            let pairs = PcapFile::new(selected_file).match_tx_rx();
+            let pairs = PcapFile::new(&selected_file.path).match_tx_rx();
 
-            let roundtrip_times = pairs
-                .iter()
-                .enumerate()
-                .map(|(i, item)| [i as f64, item.delta_time.as_nanos() as f64])
-                .collect();
+            let roundtrip_times = (
+                selected_file.display_name.clone(),
+                pairs
+                    .iter()
+                    .enumerate()
+                    .map(|(i, item)| [i as f64, item.delta_time.as_nanos() as f64 / 1000.0])
+                    .collect(),
+            );
 
             new.push(roundtrip_times);
         }
@@ -115,54 +121,65 @@ impl eframe::App for MyApp {
 
             // Perf: https://github.com/emilk/egui/pull/3849
             my_plot.show(ui, |plot_ui| {
+                // Bounds of the plot by data values, not pixels
                 let plot_bounds = plot_ui.plot_bounds();
 
-                // TODO: Loop through series, calculate bounds properly.
-
-                let points = if let Some(_) = self.prev_bounds {
-                    let start_count = plot_bounds.min()[0] as usize;
-                    let end_count = (plot_bounds.max()[0] as usize).min(self.plots.read().len());
-
-                    let display_range = start_count..end_count;
-
-                    let values_width = plot_bounds.width();
-
-                    let pixels_width = {
-                        plot_ui.screen_from_plot(plot_bounds.max().into())[0]
-                            - plot_ui.screen_from_plot(plot_bounds.min().into())[0]
-                    } as f64;
-
-                    let stride = (values_width / pixels_width).max(1.0) as usize;
-
-                    self.plots.read()[0][display_range]
-                        .chunks(stride)
-                        .into_iter()
-                        .map(|chunk| {
-                            let ys = chunk.iter().map(|[_x, y]| *y);
-                            let xs = chunk.iter().map(|[x, _y]| *x);
-
-                            // Put X coord in middle of chunk
-                            let x = xs.clone().sum::<f64>() / stride as f64;
-
-                            [
-                                [
-                                    x,
-                                    ys.clone()
-                                        .min_by(|a, b| (*a as u32).cmp(&(*b as u32)))
-                                        .unwrap(),
-                                ],
-                                [x, ys.max_by(|a, b| (*a as u32).cmp(&(*b as u32))).unwrap()],
-                            ]
-                        })
-                        .flatten()
-                        .collect::<Vec<_>>()
+                let (start_count, end_count) = if plot_bounds.min()[0] <= 0.0 {
+                    (
+                        0usize,
+                        self.plots
+                            .read()
+                            .iter()
+                            .map(|(_name, points)| points.len())
+                            .max()
+                            .unwrap_or(0),
+                    )
                 } else {
-                    self.plots.read()[0].clone()
+                    (plot_bounds.min()[0] as usize, plot_bounds.max()[0] as usize)
                 };
 
-                plot_ui.line(Line::new(PlotPoints::new(points)).name("curve"));
+                let values_width = plot_bounds.width();
 
-                self.prev_bounds = Some(plot_bounds);
+                let pixels_width = {
+                    plot_ui.screen_from_plot(plot_bounds.max().into())[0]
+                        - plot_ui.screen_from_plot(plot_bounds.min().into())[0]
+                } as f64;
+
+                let stride = (values_width / pixels_width).max(1.0) as usize;
+
+                for (name, series) in self.plots.read().iter() {
+                    // Aggregate series so there's at most two points per pixel - the min and max of
+                    // the data that sits in that pixel.
+                    let points = {
+                        let display_range = start_count..end_count.min(series.len());
+
+                        series[display_range]
+                            .chunks(stride)
+                            .into_iter()
+                            .map(|chunk| {
+                                let ys = chunk.iter().map(|[_x, y]| *y);
+                                let xs = chunk.iter().map(|[x, _y]| *x);
+
+                                // Put X coord in middle of chunk
+                                let x = xs.clone().sum::<f64>() / stride as f64;
+
+                                [
+                                    [
+                                        x,
+                                        ys.clone()
+                                            .min_by(|a, b| (*a as u32).cmp(&(*b as u32)))
+                                            .unwrap(),
+                                    ],
+                                    [x, ys.max_by(|a, b| (*a as u32).cmp(&(*b as u32))).unwrap()],
+                                ]
+                            })
+                            .flatten()
+                            .collect::<Vec<_>>()
+                    };
+
+                    // TODO: Series names
+                    plot_ui.line(Line::new(PlotPoints::new(points)).name(name));
+                }
             });
         });
     }
@@ -178,13 +195,6 @@ async fn main() -> Result<(), eframe::Error> {
             .with_min_inner_size([1280.0, 720.0]),
         ..Default::default()
     };
-
-    let graph = PcapFile::new(&PathBuf::from("./dumps/smol-io-uring-new.pcapng"))
-        .match_tx_rx()
-        .into_iter()
-        .enumerate()
-        .map(|(i, stat)| [i as f64, stat.delta_time.as_nanos() as f64 / 1000.0])
-        .collect::<Vec<_>>();
 
     let dumps_path = PathBuf::from("./dumps");
 
@@ -274,7 +284,7 @@ async fn main() -> Result<(), eframe::Error> {
             Box::new(MyApp {
                 files,
                 plots,
-                prev_bounds: None,
+                // prev_bounds: None,
                 // rx,
             })
         }),
