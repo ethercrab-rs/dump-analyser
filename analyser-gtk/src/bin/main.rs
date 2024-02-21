@@ -1,8 +1,7 @@
-use std::path::PathBuf;
-
 use dump_analyser::PcapFile;
 use eframe::egui;
 use egui_plot::{Legend, Line, Plot, PlotBounds, PlotPoints};
+use std::path::PathBuf;
 
 #[derive(Default)]
 struct MyApp {

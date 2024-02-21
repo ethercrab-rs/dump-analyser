@@ -1,7 +1,5 @@
-mod files;
-
+use analyser_gtk::files::{self, DumpFiles};
 use dump_analyser::PcapFile;
-use files::DumpFiles;
 use futures::StreamExt;
 use gio::glib;
 use gtk::{gdk::EventMask, prelude::*};
