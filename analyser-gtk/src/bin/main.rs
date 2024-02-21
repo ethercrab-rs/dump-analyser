@@ -15,7 +15,8 @@ use parking_lot::RwLock;
 use std::{path::PathBuf, sync::Arc, thread, time::Duration};
 
 struct MyApp {
-    plots: Arc<RwLock<Vec<(String, Vec<[f64; 2]>)>>>,
+    round_trip_times: Arc<RwLock<Vec<(String, Vec<[f64; 2]>)>>>,
+    cycle_delta_times: Arc<RwLock<Vec<(String, Vec<[f64; 2]>)>>>,
     // prev_bounds: Option<PlotBounds>,
     files: Arc<RwLock<DumpFiles>>,
     // rx: tokio::sync::mpsc::UnboundedReceiver<DebounceEventResult>,
@@ -74,10 +75,12 @@ impl MyApp {
     fn recompute_plots(&self) {
         let files = self.files.read();
 
+        //
+
         let mut new = Vec::new();
+        let mut new_cycle_deltas = Vec::new();
 
         for selected_file in files.selected_paths() {
-            // TODO: Read pcap files on startup/when added?
             let pairs = PcapFile::new(&selected_file.path).match_tx_rx();
 
             let roundtrip_times = (
@@ -89,10 +92,89 @@ impl MyApp {
                     .collect(),
             );
 
+            let cycle_delta_times = (
+                selected_file.display_name.clone(),
+                pairs
+                    .windows(2)
+                    .into_iter()
+                    .enumerate()
+                    .map(|(i, stats)| {
+                        let [prev, curr] = stats else { unreachable!() };
+
+                        let t = curr.tx_time.as_nanos() - prev.tx_time.as_nanos();
+
+                        [i as f64, t as f64 / 1000.0]
+                    })
+                    .collect(),
+            );
+
             new.push(roundtrip_times);
+            new_cycle_deltas.push(cycle_delta_times);
         }
 
-        *self.plots.write() = new;
+        *self.round_trip_times.write() = new;
+        *self.cycle_delta_times.write() = new_cycle_deltas;
+    }
+
+    fn compute_bounds(&self, plot_ui: &mut egui_plot::PlotUi) -> (usize, usize, usize) {
+        // Bounds of the plot by data values, not pixels
+        let plot_bounds = plot_ui.plot_bounds();
+
+        let (start_count, end_count) = if plot_bounds.min()[0] <= 0.0 {
+            (
+                0usize,
+                self.round_trip_times
+                    .read()
+                    .iter()
+                    .map(|(_name, points)| points.len())
+                    .max()
+                    .unwrap_or(0),
+            )
+        } else {
+            (plot_bounds.min()[0] as usize, plot_bounds.max()[0] as usize)
+        };
+
+        let values_width = plot_bounds.width();
+
+        let pixels_width = {
+            plot_ui.screen_from_plot(plot_bounds.max().into())[0]
+                - plot_ui.screen_from_plot(plot_bounds.min().into())[0]
+        } as f64;
+
+        let stride = (values_width / pixels_width).max(1.0) as usize;
+
+        (start_count, end_count, stride)
+    }
+
+    fn aggregate(
+        &self,
+        (start_count, end_count, stride): (usize, usize, usize),
+        series: &[[f64; 2]],
+    ) -> Vec<[f64; 2]> {
+        let display_range = start_count..end_count.min(series.len());
+
+        series[display_range]
+            .chunks(stride)
+            .into_iter()
+            .map(|chunk| {
+                let ys = chunk.iter().map(|[_x, y]| *y);
+                let xs = chunk.iter().map(|[x, _y]| *x);
+
+                // Put X coord in middle of chunk
+                let x = xs.clone().sum::<f64>() / stride as f64;
+
+                [
+                    [
+                        x,
+                        ys.clone()
+                            .min_by(|a, b| (*a as u32).cmp(&(*b as u32)))
+                            .unwrap(),
+                    ],
+                    [x, ys.max_by(|a, b| (*a as u32).cmp(&(*b as u32))).unwrap()],
+                ]
+            })
+            .flatten()
+            .collect::<Vec<_>>()
     }
 }
 
@@ -121,63 +203,11 @@ impl eframe::App for MyApp {
 
             // Perf: https://github.com/emilk/egui/pull/3849
             my_plot.show(ui, |plot_ui| {
-                // Bounds of the plot by data values, not pixels
-                let plot_bounds = plot_ui.plot_bounds();
+                let bounds = self.compute_bounds(plot_ui);
 
-                let (start_count, end_count) = if plot_bounds.min()[0] <= 0.0 {
-                    (
-                        0usize,
-                        self.plots
-                            .read()
-                            .iter()
-                            .map(|(_name, points)| points.len())
-                            .max()
-                            .unwrap_or(0),
-                    )
-                } else {
-                    (plot_bounds.min()[0] as usize, plot_bounds.max()[0] as usize)
-                };
+                for (name, series) in self.round_trip_times.read().iter() {
+                    let points = self.aggregate(bounds, series);
 
-                let values_width = plot_bounds.width();
-
-                let pixels_width = {
-                    plot_ui.screen_from_plot(plot_bounds.max().into())[0]
-                        - plot_ui.screen_from_plot(plot_bounds.min().into())[0]
-                } as f64;
-
-                let stride = (values_width / pixels_width).max(1.0) as usize;
-
-                for (name, series) in self.plots.read().iter() {
-                    // Aggregate series so there's at most two points per pixel - the min and max of
-                    // the data that sits in that pixel.
-                    let points = {
-                        let display_range = start_count..end_count.min(series.len());
-
-                        series[display_range]
-                            .chunks(stride)
-                            .into_iter()
-                            .map(|chunk| {
-                                let ys = chunk.iter().map(|[_x, y]| *y);
-                                let xs = chunk.iter().map(|[x, _y]| *x);
-
-                                // Put X coord in middle of chunk
-                                let x = xs.clone().sum::<f64>() / stride as f64;
-
-                                [
-                                    [
-                                        x,
-                                        ys.clone()
-                                            .min_by(|a, b| (*a as u32).cmp(&(*b as u32)))
-                                            .unwrap(),
-                                    ],
-                                    [x, ys.max_by(|a, b| (*a as u32).cmp(&(*b as u32))).unwrap()],
-                                ]
-                            })
-                            .flatten()
-                            .collect::<Vec<_>>()
-                    };
-
-                    // TODO: Series names
                     plot_ui.line(Line::new(PlotPoints::new(points)).name(name));
                 }
             });
@@ -207,7 +237,8 @@ async fn main() -> Result<(), eframe::Error> {
             let p = dumps_path.clone();
 
             let files = Arc::new(parking_lot::RwLock::new(DumpFiles::new(dumps_path)));
-            let plots = Arc::new(parking_lot::RwLock::new(Vec::new()));
+            let round_trip_times = Arc::new(parking_lot::RwLock::new(Vec::new()));
+            let cycle_delta_times = Arc::new(parking_lot::RwLock::new(Vec::new()));
 
             let f2 = files.clone();
 
@@ -283,9 +314,8 @@ async fn main() -> Result<(), eframe::Error> {
 
             Box::new(MyApp {
                 files,
-                plots,
-                // prev_bounds: None,
-                // rx,
+                round_trip_times,
+                cycle_delta_times,
             })
         }),
     )
