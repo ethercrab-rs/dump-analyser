@@ -1,4 +1,4 @@
-use analyser_gtk::files::DumpFiles;
+use analyser_gui::files::DumpFiles;
 use dump_analyser::PcapFile;
 use eframe::egui;
 use egui::{TextStyle, Ui};

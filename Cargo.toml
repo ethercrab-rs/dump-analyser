@@ -1,3 +1,3 @@
 [workspace]
 resolver = "2"
-members = ["analyser", "analyser-gtk", "concurrent-lrw"]
+members = ["analyser", "analyser-gui"]
