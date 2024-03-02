@@ -82,8 +82,12 @@ impl MyApp {
                 .striped(false)
                 .resizable(true)
                 .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
-                // Name is widest column
-                .column(Column::remainder())
+                .column(Column::auto().at_least(350.0))
+                .column(Column::auto())
+                .column(Column::auto())
+                .column(Column::auto())
+                .column(Column::auto())
+                .column(Column::auto())
                 .column(Column::auto())
                 .column(Column::auto())
                 .column(Column::auto())
@@ -99,6 +103,23 @@ impl MyApp {
                     header.col(|ui| {
                         ui.strong("Std. Dev.");
                     });
+                    header.col(|ui| {
+                        ui.strong("Variance");
+                    });
+
+                    header.col(|ui| {
+                        ui.strong("P25");
+                    });
+                    header.col(|ui| {
+                        ui.strong("P50");
+                    });
+                    header.col(|ui| {
+                        ui.strong("P90");
+                    });
+                    header.col(|ui| {
+                        ui.strong("P99");
+                    });
+
                     header.col(|ui| {
                         ui.strong("Min");
                     });
@@ -118,6 +139,23 @@ impl MyApp {
 
                             row.col(|ui| {
                                 ui.label(format!("{:.3} us", item.round_trip_stats.std_dev));
+                            });
+
+                            row.col(|ui| {
+                                ui.label(format!("{:.3} us", item.round_trip_stats.variance));
+                            });
+
+                            row.col(|ui| {
+                                ui.label(format!("{:.3} us", item.round_trip_stats.p25));
+                            });
+                            row.col(|ui| {
+                                ui.label(format!("{:.3} us", item.round_trip_stats.p50));
+                            });
+                            row.col(|ui| {
+                                ui.label(format!("{:.3} us", item.round_trip_stats.p90));
+                            });
+                            row.col(|ui| {
+                                ui.label(format!("{:.3} us", item.round_trip_stats.p99));
                             });
 
                             row.col(|ui| {

@@ -1,6 +1,6 @@
 use dump_analyser::PcapFile;
 use parking_lot::RwLock;
-use statrs::statistics::Statistics;
+use statrs::statistics::{Data, OrderStatistics, Statistics};
 use std::{
     collections::{BTreeMap, HashSet},
     fs,
@@ -28,13 +28,25 @@ pub struct DumpFileStats {
     pub min: f64,
     pub max: f64,
     pub mean: f64,
+    pub variance: f64,
+    pub p25: f64,
+    pub p50: f64,
+    pub p90: f64,
+    pub p99: f64,
 }
 
 impl DumpFileStats {
     pub fn new(data: &[[f64; 2]]) -> Self {
         let values = data.iter().map(|[_x, y]| y);
 
+        let mut d: Data<Vec<f64>> = Data::new(values.clone().copied().collect());
+
         let std_dev = values.clone().std_dev();
+        let variance = values.clone().variance();
+        let p25 = d.percentile(25);
+        let p50 = d.percentile(50);
+        let p90 = d.percentile(90);
+        let p99 = d.percentile(99);
 
         let mut min = f64::MAX;
         let mut max = 0.0f64;
@@ -55,6 +67,11 @@ impl DumpFileStats {
             min,
             max,
             mean,
+            variance,
+            p25,
+            p50,
+            p90,
+            p99,
         }
     }
 }
