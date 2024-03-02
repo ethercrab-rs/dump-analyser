@@ -73,10 +73,9 @@ impl MyApp {
             });
     }
 
+    /// Collect all selected files, go through them and compute chart data.
     fn recompute_plots(&self) {
         let files = self.files.read();
-
-        //
 
         let mut new = Vec::new();
         let mut new_cycle_deltas = Vec::new();
@@ -117,6 +116,8 @@ impl MyApp {
         *self.cycle_delta_times.write() = new_cycle_deltas;
     }
 
+    /// Returns `(start count, end count, stride)`. Used for showing a subset of some data on the
+    /// graph to improve performance.
     fn compute_bounds(&self, plot_ui: &mut egui_plot::PlotUi) -> (usize, usize, usize) {
         // Bounds of the plot by data values, not pixels
         let plot_bounds = plot_ui.plot_bounds();
@@ -147,6 +148,11 @@ impl MyApp {
         (start_count, end_count, stride)
     }
 
+    /// Take a series of points and filter them down to a subset where:
+    ///
+    /// - Only visible points are shown.
+    /// - If the data is dense enough that multiple points span a single pixel, two points (min,
+    ///   max) are created for that pixel.
     fn aggregate(
         &self,
         (start_count, end_count, stride): (usize, usize, usize),
@@ -206,6 +212,7 @@ impl eframe::App for MyApp {
                 .size(Size::remainder())
                 .size(Size::remainder())
                 .vertical(|mut strip| {
+                    // TX/RX round trip time
                     strip.cell(|ui| {
                         StripBuilder::new(ui)
                             // Heading
@@ -237,6 +244,7 @@ impl eframe::App for MyApp {
                                 });
                             });
                     });
+                    // Cycle to cycle delta
                     strip.cell(|ui| {
                         StripBuilder::new(ui)
                             // Heading
