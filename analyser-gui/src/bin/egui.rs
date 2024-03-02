@@ -1,9 +1,10 @@
 use analyser_gui::files::{DumpFile, DumpFiles};
 use eframe::egui;
-use egui::{TextStyle, Ui};
+use egui::epaint::Hsva;
+use egui::{Color32, TextStyle, Ui};
 use egui_extras::{Column, TableBuilder};
 use egui_extras::{Size, StripBuilder};
-use egui_plot::{Legend, Line, Plot, PlotPoints};
+use egui_plot::{Legend, Line, LineStyle, Plot, PlotPoints, VLine};
 use notify_debouncer_full::{
     notify::{
         event::{AccessKind, AccessMode, CreateKind, RemoveKind},
@@ -131,41 +132,52 @@ impl MyApp {
                     });
                 })
                 .body(|mut body| {
-                    for item in selected_files.iter() {
+                    for (idx, item) in selected_files.iter().enumerate() {
+                        let c = idx_to_colour(idx);
+
                         body.row(18.0, |mut row| {
                             row.col(|ui| {
-                                ui.label(&item.display_name);
+                                ui.colored_label(c, &item.display_name);
                             });
 
                             row.col(|ui| {
-                                ui.label(format!("{:.3} us", item.round_trip_stats.std_dev));
+                                ui.colored_label(
+                                    c,
+                                    format!("{:.3} us", item.round_trip_stats.std_dev),
+                                );
                             });
 
                             row.col(|ui| {
-                                ui.label(format!("{:.3} us", item.round_trip_stats.variance));
+                                ui.colored_label(
+                                    c,
+                                    format!("{:.3} us", item.round_trip_stats.variance),
+                                );
                             });
 
                             row.col(|ui| {
-                                ui.label(format!("{:.3} us", item.round_trip_stats.p25));
+                                ui.colored_label(c, format!("{:.3} us", item.round_trip_stats.p25));
                             });
                             row.col(|ui| {
-                                ui.label(format!("{:.3} us", item.round_trip_stats.p50));
+                                ui.colored_label(c, format!("{:.3} us", item.round_trip_stats.p50));
                             });
                             row.col(|ui| {
-                                ui.label(format!("{:.3} us", item.round_trip_stats.p90));
+                                ui.colored_label(c, format!("{:.3} us", item.round_trip_stats.p90));
                             });
                             row.col(|ui| {
-                                ui.label(format!("{:.3} us", item.round_trip_stats.p99));
+                                ui.colored_label(c, format!("{:.3} us", item.round_trip_stats.p99));
                             });
 
                             row.col(|ui| {
-                                ui.label(format!("{:.3} us", item.round_trip_stats.min));
+                                ui.colored_label(c, format!("{:.3} us", item.round_trip_stats.min));
                             });
                             row.col(|ui| {
-                                ui.label(format!("{:.3} us", item.round_trip_stats.mean));
+                                ui.colored_label(
+                                    c,
+                                    format!("{:.3} us", item.round_trip_stats.mean),
+                                );
                             });
                             row.col(|ui| {
-                                ui.label(format!("{:.3} us", item.round_trip_stats.max));
+                                ui.colored_label(c, format!("{:.3} us", item.round_trip_stats.max));
                             });
 
                             // if row.response().clicked() {
@@ -297,22 +309,104 @@ impl eframe::App for MyApp {
                                     ui.heading("Packet round trip times (us)");
                                 });
                                 strip.cell(|ui| {
-                                    Plot::new("round_trips")
-                                        .x_axis_label("Packet number")
-                                        .y_axis_label("TX/RX round trip time (us)")
-                                        .legend(Legend::default())
-                                        .show(ui, |plot_ui| {
-                                            let bounds = self.compute_bounds(plot_ui);
+                                    StripBuilder::new(ui)
+                                        .size(Size::relative(0.6))
+                                        .size(Size::remainder())
+                                        .horizontal(|mut strip| {
+                                            strip.cell(|ui| {
+                                                Plot::new("round_trips")
+                                                    .x_axis_label("Packet number")
+                                                    .y_axis_label("TX/RX round trip time (us)")
+                                                    .legend(Legend::default())
+                                                    .show(ui, |plot_ui| {
+                                                        let bounds = self.compute_bounds(plot_ui);
 
-                                            for item in files.iter() {
-                                                let points =
-                                                    self.aggregate(bounds, &item.round_trip_times);
+                                                        for (idx, item) in files.iter().enumerate()
+                                                        {
+                                                            let points = self.aggregate(
+                                                                bounds,
+                                                                &item.round_trip_times,
+                                                            );
 
-                                                plot_ui.line(
-                                                    Line::new(PlotPoints::new(points))
-                                                        .name(&item.display_name),
-                                                );
-                                            }
+                                                            plot_ui.line(
+                                                                Line::new(PlotPoints::new(points))
+                                                                    .color(idx_to_colour(idx))
+                                                                    .name(&item.display_name),
+                                                            );
+                                                        }
+                                                    });
+                                            });
+
+                                            strip.cell(|ui| {
+                                                Plot::new("round_trips_histo")
+                                                    // Y is just a count of the bucket, so is meaningless
+                                                    .show_y(false)
+                                                    .y_axis_formatter(|_, _, _| String::new())
+                                                    .x_axis_label("Round trip time (us)")
+                                                    .legend(Legend::default())
+                                                    .show(ui, |plot_ui| {
+                                                        for (idx, item) in files.iter().enumerate()
+                                                        {
+                                                            let c = idx_to_colour(idx);
+
+                                                            let points = item
+                                                                .round_trip_histo
+                                                                .iter_all()
+                                                                .enumerate()
+                                                                .map(|(idx, bucket)| {
+                                                                    [
+                                                                        idx as f64,
+                                                                        bucket.count_at_value()
+                                                                            as f64,
+                                                                    ]
+                                                                })
+                                                                .collect::<Vec<_>>();
+
+                                                            // Mean
+                                                            plot_ui.vline(
+                                                                VLine::new(
+                                                                    item.round_trip_stats.mean,
+                                                                )
+                                                                .style(LineStyle::dashed_dense())
+                                                                .color(
+                                                                    c
+                                                                        // 50% alpha
+                                                                        .gamma_multiply(0.75),
+                                                                ),
+                                                            );
+
+                                                            // Std dev
+                                                            plot_ui.vline(
+                                                                VLine::new(
+                                                                    item.round_trip_stats.mean
+                                                                        - item
+                                                                            .round_trip_stats
+                                                                            .std_dev
+                                                                            / 2.0,
+                                                                )
+                                                                .style(LineStyle::dashed_dense())
+                                                                .color(c.gamma_multiply(0.5)),
+                                                            );
+                                                            plot_ui.vline(
+                                                                VLine::new(
+                                                                    item.round_trip_stats.mean
+                                                                        + item
+                                                                            .round_trip_stats
+                                                                            .std_dev
+                                                                            / 2.0,
+                                                                )
+                                                                .style(LineStyle::dashed_dense())
+                                                                .color(c.gamma_multiply(0.5)),
+                                                            );
+
+                                                            plot_ui.line(
+                                                                Line::new(PlotPoints::new(points))
+                                                                    .color(c)
+                                                                    .name(&item.display_name),
+                                                            );
+                                                        }
+                                                    });
+                                            });
                                         });
                                 });
                             });
@@ -329,22 +423,104 @@ impl eframe::App for MyApp {
                                     ui.heading("Cycle-cycle delta (us)");
                                 });
                                 strip.cell(|ui| {
-                                    Plot::new("cycle_delta")
-                                        .x_axis_label("Packet number")
-                                        .y_axis_label("Cycle to cycle delta time (us)")
-                                        .legend(Legend::default())
-                                        .show(ui, |plot_ui| {
-                                            let bounds = self.compute_bounds(plot_ui);
+                                    StripBuilder::new(ui)
+                                        .size(Size::relative(0.6))
+                                        .size(Size::remainder())
+                                        .horizontal(|mut strip| {
+                                            strip.cell(|ui| {
+                                                Plot::new("cycle_delta")
+                                                    .x_axis_label("Packet number")
+                                                    .y_axis_label("Cycle to cycle delta time (us)")
+                                                    .legend(Legend::default())
+                                                    .show(ui, |plot_ui| {
+                                                        let bounds = self.compute_bounds(plot_ui);
 
-                                            for item in files.iter() {
-                                                let points =
-                                                    self.aggregate(bounds, &item.cycle_delta_times);
+                                                        for (idx, item) in files.iter().enumerate()
+                                                        {
+                                                            let points = self.aggregate(
+                                                                bounds,
+                                                                &item.cycle_delta_times,
+                                                            );
 
-                                                plot_ui.line(
-                                                    Line::new(PlotPoints::new(points))
-                                                        .name(&item.display_name),
-                                                );
-                                            }
+                                                            plot_ui.line(
+                                                                Line::new(PlotPoints::new(points))
+                                                                    .color(idx_to_colour(idx))
+                                                                    .name(&item.display_name),
+                                                            );
+                                                        }
+                                                    });
+                                            });
+
+                                            strip.cell(|ui| {
+                                                Plot::new("cycle_delta_histo")
+                                                    // Y is just a count of the bucket, so is meaningless
+                                                    .show_y(false)
+                                                    .y_axis_formatter(|_, _, _| String::new())
+                                                    .x_axis_label("Cycle to cycle delta (us)")
+                                                    .legend(Legend::default())
+                                                    .show(ui, |plot_ui| {
+                                                        for (idx, item) in files.iter().enumerate()
+                                                        {
+                                                            let c = idx_to_colour(idx);
+
+                                                            let points: Vec<[f64; 2]> = item
+                                                                .cycle_delta_histo
+                                                                .iter_all()
+                                                                .enumerate()
+                                                                .map(|(idx, bucket)| {
+                                                                    [
+                                                                        idx as f64,
+                                                                        bucket.count_at_value()
+                                                                            as f64,
+                                                                    ]
+                                                                })
+                                                                .collect::<Vec<_>>();
+
+                                                            // Mean
+                                                            plot_ui.vline(
+                                                                VLine::new(
+                                                                    item.cycle_delta_stats.mean,
+                                                                )
+                                                                .style(LineStyle::dashed_dense())
+                                                                .color(
+                                                                    c
+                                                                        // 50% alpha
+                                                                        .gamma_multiply(0.75),
+                                                                ),
+                                                            );
+
+                                                            // Std dev
+                                                            plot_ui.vline(
+                                                                VLine::new(
+                                                                    item.cycle_delta_stats.mean
+                                                                        - item
+                                                                            .cycle_delta_stats
+                                                                            .std_dev
+                                                                            / 2.0,
+                                                                )
+                                                                .style(LineStyle::dashed_dense())
+                                                                .color(c.gamma_multiply(0.5)),
+                                                            );
+                                                            plot_ui.vline(
+                                                                VLine::new(
+                                                                    item.cycle_delta_stats.mean
+                                                                        + item
+                                                                            .round_trip_stats
+                                                                            .std_dev
+                                                                            / 2.0,
+                                                                )
+                                                                .style(LineStyle::dashed_dense())
+                                                                .color(c.gamma_multiply(0.5)),
+                                                            );
+
+                                                            plot_ui.line(
+                                                                Line::new(PlotPoints::new(points))
+                                                                    .color(c)
+                                                                    .name(&item.display_name),
+                                                            );
+                                                        }
+                                                    });
+                                            });
                                         });
                                 });
                             });
@@ -452,4 +628,12 @@ async fn main() -> Result<(), eframe::Error> {
             Box::new(MyApp { files })
         }),
     )
+}
+
+// Nicked from <https://github.com/emilk/egui/blob/e29022efc4783fe06842a46371d5bd88e3f13bdd/crates/egui_plot/src/plot_ui.rs#L16C5-L22C6>
+fn idx_to_colour(idx: usize) -> Color32 {
+    let i = idx as f32;
+    let golden_ratio = (5.0_f32.sqrt() - 1.0) / 2.0; // 0.61803398875
+    let h = i as f32 * golden_ratio;
+    Hsva::new(h, 0.85, 0.5, 1.0).into() // TODO(emilk): OkLab or some other perspective color space
 }
