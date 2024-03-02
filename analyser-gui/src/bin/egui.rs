@@ -12,7 +12,6 @@ use notify_debouncer_full::{
     DebounceEventResult, DebouncedEvent,
 };
 use parking_lot::RwLock;
-use statrs::statistics::Statistics;
 use std::{path::PathBuf, sync::Arc, thread, time::Duration};
 
 struct MyApp {
@@ -87,6 +86,8 @@ impl MyApp {
                 .column(Column::remainder())
                 .column(Column::auto())
                 .column(Column::auto())
+                .column(Column::auto())
+                .column(Column::auto())
                 .min_scrolled_height(0.0);
             // .sense(egui::Sense::click());
 
@@ -99,45 +100,34 @@ impl MyApp {
                         ui.strong("Std. Dev.");
                     });
                     header.col(|ui| {
-                        ui.strong("Min / Mean / Max");
+                        ui.strong("Min");
+                    });
+                    header.col(|ui| {
+                        ui.strong("Mean");
+                    });
+                    header.col(|ui| {
+                        ui.strong("Max");
                     });
                 })
                 .body(|mut body| {
                     for item in selected_files.iter() {
-                        let values = item.round_trip_times.iter().map(|[_x, y]| y);
-
                         body.row(18.0, |mut row| {
                             row.col(|ui| {
                                 ui.label(&item.display_name);
                             });
 
                             row.col(|ui| {
-                                ui.label(format!("{:.3} us", values.clone().std_dev()));
+                                ui.label(format!("{:.3} us", item.round_trip_stats.std_dev));
                             });
 
                             row.col(|ui| {
-                                // ui.label(format!(
-                                //     "{:.3} us / {:.3} us / {:.3} us",
-                                //     Statistics::min(values.clone()),
-                                //     values.clone().mean(),
-                                //     Statistics::max(values.clone())
-                                // ));
-
-                                let mut min = f64::MAX;
-                                let mut max = 0.0f64;
-                                let mut sum = 0.0;
-                                let mut count = 0.0;
-
-                                for value in values {
-                                    min = min.min(*value);
-                                    max = max.max(*value);
-                                    sum += value;
-                                    count += 1.0;
-                                }
-
-                                let mean = sum / count;
-
-                                ui.label(format!("{:.3} us / {:.3} us / {:.3} us", min, mean, max));
+                                ui.label(format!("{:.3} us", item.round_trip_stats.min));
+                            });
+                            row.col(|ui| {
+                                ui.label(format!("{:.3} us", item.round_trip_stats.mean));
+                            });
+                            row.col(|ui| {
+                                ui.label(format!("{:.3} us", item.round_trip_stats.max));
                             });
 
                             // if row.response().clicked() {

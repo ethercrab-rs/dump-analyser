@@ -1,12 +1,12 @@
+use dump_analyser::PcapFile;
+use parking_lot::RwLock;
+use statrs::statistics::Statistics;
 use std::{
     collections::{BTreeMap, HashSet},
     fs,
     path::{Path, PathBuf},
     thread,
 };
-
-use dump_analyser::PcapFile;
-use parking_lot::RwLock;
 
 #[derive(Debug, Clone)]
 pub struct DumpFile {
@@ -17,7 +17,46 @@ pub struct DumpFile {
 
     pub round_trip_times: Vec<[f64; 2]>,
     pub cycle_delta_times: Vec<[f64; 2]>,
-    // TODO: Stats fields
+
+    pub round_trip_stats: DumpFileStats,
+    pub cycle_delta_stats: DumpFileStats,
+}
+
+#[derive(Debug, Clone)]
+pub struct DumpFileStats {
+    pub std_dev: f64,
+    pub min: f64,
+    pub max: f64,
+    pub mean: f64,
+}
+
+impl DumpFileStats {
+    pub fn new(data: &[[f64; 2]]) -> Self {
+        let values = data.iter().map(|[_x, y]| y);
+
+        let std_dev = values.clone().std_dev();
+
+        let mut min = f64::MAX;
+        let mut max = 0.0f64;
+        let mut sum = 0.0;
+        let mut count = 0.0;
+
+        for value in values {
+            min = min.min(*value);
+            max = max.max(*value);
+            sum += value;
+            count += 1.0;
+        }
+
+        let mean = sum / count;
+
+        Self {
+            std_dev,
+            min,
+            max,
+            mean,
+        }
+    }
 }
 
 #[derive(Default, Clone)]
@@ -70,7 +109,7 @@ impl DumpFiles {
                         .iter()
                         .enumerate()
                         .map(|(i, item)| [i as f64, item.delta_time.as_nanos() as f64 / 1000.0])
-                        .collect();
+                        .collect::<Vec<_>>();
 
                     let cycle_delta_times = pairs
                         .windows(2)
@@ -83,9 +122,11 @@ impl DumpFiles {
 
                             [i as f64, t as f64 / 1000.0]
                         })
-                        .collect();
+                        .collect::<Vec<_>>();
 
                     scratch.write().push(DumpFile {
+                        round_trip_stats: DumpFileStats::new(&round_trip_times),
+                        cycle_delta_stats: DumpFileStats::new(&cycle_delta_times),
                         selected: false,
                         path: path.clone(),
                         display_name: path.file_stem().unwrap().to_string_lossy().to_string(),
