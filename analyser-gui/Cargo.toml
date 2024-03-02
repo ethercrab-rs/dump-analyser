@@ -24,6 +24,8 @@ tokio = { version = "1.36.0", features = [
     "sync",
 ] }
 parking_lot = { version = "0.12.1", features = ["deadlock_detection"] }
+hdrhistogram = { version = "7.5.4", default-features = false }
+statrs = { version = "0.16.0", default-features = false }
 
 # cairo-rs = "0.17.0"
 # gio = "0.17.0"

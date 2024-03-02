@@ -4,11 +4,18 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use dump_analyser::PcapFile;
+
 #[derive(Debug, Clone)]
 pub struct Item {
     pub path: PathBuf,
     pub display_name: String,
     pub selected: bool,
+    pub num_points: usize,
+
+    pub round_trip_times: Vec<[f64; 2]>,
+    pub cycle_delta_times: Vec<[f64; 2]>,
+    // TODO: Stats fields
 }
 
 #[derive(Default, Clone)]
@@ -51,12 +58,36 @@ impl DumpFiles {
         let new = paths.difference(&n2);
 
         for path in new.into_iter() {
+            let pairs = PcapFile::new(path).match_tx_rx();
+
+            let round_trip_times = pairs
+                .iter()
+                .enumerate()
+                .map(|(i, item)| [i as f64, item.delta_time.as_nanos() as f64 / 1000.0])
+                .collect();
+
+            let cycle_delta_times = pairs
+                .windows(2)
+                .into_iter()
+                .enumerate()
+                .map(|(i, stats)| {
+                    let [prev, curr] = stats else { unreachable!() };
+
+                    let t = curr.tx_time.as_nanos() - prev.tx_time.as_nanos();
+
+                    [i as f64, t as f64 / 1000.0]
+                })
+                .collect();
+
             self.names.insert(
                 path.clone(),
                 Item {
                     selected: false,
                     path: path.clone(),
                     display_name: path.file_stem().unwrap().to_string_lossy().to_string(),
+                    round_trip_times,
+                    cycle_delta_times,
+                    num_points: pairs.len(),
                 },
             );
         }

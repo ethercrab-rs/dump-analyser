@@ -1,5 +1,4 @@
 use analyser_gui::files::DumpFiles;
-use dump_analyser::PcapFile;
 use eframe::egui;
 use egui::{TextStyle, Ui};
 use egui_extras::{Column, TableBuilder};
@@ -13,14 +12,11 @@ use notify_debouncer_full::{
     DebounceEventResult, DebouncedEvent,
 };
 use parking_lot::RwLock;
+use statrs::statistics::Statistics;
 use std::{path::PathBuf, sync::Arc, thread, time::Duration};
 
 struct MyApp {
-    round_trip_times: Arc<RwLock<Vec<(String, Vec<[f64; 2]>)>>>,
-    cycle_delta_times: Arc<RwLock<Vec<(String, Vec<[f64; 2]>)>>>,
-    // prev_bounds: Option<PlotBounds>,
     files: Arc<RwLock<DumpFiles>>,
-    // rx: tokio::sync::mpsc::UnboundedReceiver<DebounceEventResult>,
 }
 
 impl MyApp {
@@ -65,106 +61,86 @@ impl MyApp {
 
                         if row.response().clicked() {
                             self.files.write().toggle_selection(&file.path);
-
-                            self.recompute_plots();
                         }
                     });
                 }
             });
     }
 
-    fn stats_list(&mut self, ui: &mut Ui) {
-        let table = TableBuilder::new(ui)
-            .striped(false)
-            .resizable(true)
-            .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
-            // Name is widest column
-            .column(Column::remainder())
-            // Std. Dev.
-            .column(Column::auto())
-            .min_scrolled_height(0.0);
-        // .sense(egui::Sense::click());
+    fn round_trip_stats_list(&mut self, ui: &mut Ui) {
+        ui.heading("TX/RX statistics");
 
-        // if let Some(row_index) = self.scroll_to_row.take() {
-        //     table = table.scroll_to_row(row_index, None);
-        // }
+        egui::ScrollArea::vertical().show(ui, |ui| {
+            let table = TableBuilder::new(ui)
+                .striped(false)
+                .resizable(true)
+                .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+                // Name is widest column
+                .column(Column::remainder())
+                .column(Column::auto())
+                .column(Column::auto())
+                .min_scrolled_height(0.0);
+            // .sense(egui::Sense::click());
 
-        table
-            .header(20.0, |mut header| {
-                header.col(|ui| {
-                    ui.strong("File");
-                });
-                header.col(|ui| {
-                    ui.strong("Std. Dev.");
-                });
-            })
-            .body(|mut body| {
-                // Gotta clone to prevent deadlocks
-                let files = self.files.read().clone();
-
-                for file in files.selected_paths() {
-                    body.row(18.0, |mut row| {
-                        row.col(|ui| {
-                            ui.label(&file.display_name);
-                        });
-
-                        row.col(|ui| {
-                            let std_dev = 1234.56789;
-
-                            ui.label(format!("{:.3} us", std_dev));
-                        });
-
-                        // if row.response().clicked() {
-                        //     self.files.write().toggle_selection(&file.path);
-
-                        //     self.recompute_plots();
-                        // }
+            table
+                .header(20.0, |mut header| {
+                    header.col(|ui| {
+                        ui.strong("File");
                     });
-                }
-            });
-    }
+                    header.col(|ui| {
+                        ui.strong("Std. Dev.");
+                    });
+                    header.col(|ui| {
+                        ui.strong("Min / Mean / Max");
+                    });
+                })
+                .body(|mut body| {
+                    for item in self.files.read().selected_paths() {
+                        let values = item.round_trip_times.iter().map(|[_x, y]| y);
 
-    /// Collect all selected files, go through them and compute chart data.
-    fn recompute_plots(&self) {
-        let files = self.files.read();
+                        body.row(18.0, |mut row| {
+                            row.col(|ui| {
+                                ui.label(&item.display_name);
+                            });
 
-        let mut new = Vec::new();
-        let mut new_cycle_deltas = Vec::new();
+                            row.col(|ui| {
+                                ui.label(format!("{:.3} us", values.clone().std_dev()));
+                            });
 
-        for selected_file in files.selected_paths() {
-            let pairs = PcapFile::new(&selected_file.path).match_tx_rx();
+                            row.col(|ui| {
+                                // ui.label(format!(
+                                //     "{:.3} us / {:.3} us / {:.3} us",
+                                //     Statistics::min(values.clone()),
+                                //     values.clone().mean(),
+                                //     Statistics::max(values.clone())
+                                // ));
 
-            let roundtrip_times = (
-                selected_file.display_name.clone(),
-                pairs
-                    .iter()
-                    .enumerate()
-                    .map(|(i, item)| [i as f64, item.delta_time.as_nanos() as f64 / 1000.0])
-                    .collect(),
-            );
+                                let mut min = f64::MAX;
+                                let mut max = 0.0f64;
+                                let mut sum = 0.0;
+                                let mut count = 0.0;
 
-            let cycle_delta_times = (
-                selected_file.display_name.clone(),
-                pairs
-                    .windows(2)
-                    .into_iter()
-                    .enumerate()
-                    .map(|(i, stats)| {
-                        let [prev, curr] = stats else { unreachable!() };
+                                for value in values {
+                                    min = min.min(*value);
+                                    max = max.max(*value);
+                                    sum += value;
+                                    count += 1.0;
+                                }
 
-                        let t = curr.tx_time.as_nanos() - prev.tx_time.as_nanos();
+                                let mean = sum / count;
 
-                        [i as f64, t as f64 / 1000.0]
-                    })
-                    .collect(),
-            );
+                                ui.label(format!("{:.3} us / {:.3} us / {:.3} us", min, mean, max));
+                            });
 
-            new.push(roundtrip_times);
-            new_cycle_deltas.push(cycle_delta_times);
-        }
+                            // if row.response().clicked() {
+                            //     self.files.write().toggle_selection(&file.path);
 
-        *self.round_trip_times.write() = new;
-        *self.cycle_delta_times.write() = new_cycle_deltas;
+                            //     self.recompute_plots();
+                            // }
+                        });
+                    }
+                });
+        });
     }
 
     /// Returns `(start count, end count, stride)`. Used for showing a subset of some data on the
@@ -176,10 +152,10 @@ impl MyApp {
         let (start_count, end_count) = if plot_bounds.min()[0] <= 0.0 {
             (
                 0usize,
-                self.round_trip_times
+                self.files
                     .read()
-                    .iter()
-                    .map(|(_name, points)| points.len())
+                    .selected_paths()
+                    .map(|item| item.num_points)
                     .max()
                     .unwrap_or(0),
             )
@@ -265,11 +241,7 @@ impl eframe::App for MyApp {
                 .size(Size::remainder())
                 .vertical(|mut strip| {
                     strip.cell(|ui| {
-                        ui.heading("Statistics");
-
-                        egui::ScrollArea::vertical().show(ui, |ui| {
-                            self.stats_list(ui);
-                        });
+                        self.round_trip_stats_list(ui);
                     });
 
                     // TX/RX round trip time
@@ -291,13 +263,13 @@ impl eframe::App for MyApp {
                                         .show(ui, |plot_ui| {
                                             let bounds = self.compute_bounds(plot_ui);
 
-                                            for (name, series) in
-                                                self.round_trip_times.read().iter()
-                                            {
-                                                let points = self.aggregate(bounds, series);
+                                            for item in self.files.read().selected_paths() {
+                                                let points =
+                                                    self.aggregate(bounds, &item.round_trip_times);
 
                                                 plot_ui.line(
-                                                    Line::new(PlotPoints::new(points)).name(name),
+                                                    Line::new(PlotPoints::new(points))
+                                                        .name(&item.display_name),
                                                 );
                                             }
                                         });
@@ -323,13 +295,13 @@ impl eframe::App for MyApp {
                                         .show(ui, |plot_ui| {
                                             let bounds = self.compute_bounds(plot_ui);
 
-                                            for (name, series) in
-                                                self.cycle_delta_times.read().iter()
-                                            {
-                                                let points = self.aggregate(bounds, series);
+                                            for item in self.files.read().selected_paths() {
+                                                let points =
+                                                    self.aggregate(bounds, &item.cycle_delta_times);
 
                                                 plot_ui.line(
-                                                    Line::new(PlotPoints::new(points)).name(name),
+                                                    Line::new(PlotPoints::new(points))
+                                                        .name(&item.display_name),
                                                 );
                                             }
                                         });
@@ -363,8 +335,6 @@ async fn main() -> Result<(), eframe::Error> {
             let p = dumps_path.clone();
 
             let files = Arc::new(parking_lot::RwLock::new(DumpFiles::new(dumps_path)));
-            let round_trip_times = Arc::new(parking_lot::RwLock::new(Vec::new()));
-            let cycle_delta_times = Arc::new(parking_lot::RwLock::new(Vec::new()));
 
             let f2 = files.clone();
 
@@ -438,11 +408,7 @@ async fn main() -> Result<(), eframe::Error> {
                 }
             });
 
-            Box::new(MyApp {
-                files,
-                round_trip_times,
-                cycle_delta_times,
-            })
+            Box::new(MyApp { files })
         }),
     )
 }
