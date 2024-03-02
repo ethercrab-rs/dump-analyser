@@ -73,6 +73,57 @@ impl MyApp {
             });
     }
 
+    fn stats_list(&mut self, ui: &mut Ui) {
+        let table = TableBuilder::new(ui)
+            .striped(false)
+            .resizable(true)
+            .cell_layout(egui::Layout::left_to_right(egui::Align::Center))
+            // Name is widest column
+            .column(Column::remainder())
+            // Std. Dev.
+            .column(Column::auto())
+            .min_scrolled_height(0.0);
+        // .sense(egui::Sense::click());
+
+        // if let Some(row_index) = self.scroll_to_row.take() {
+        //     table = table.scroll_to_row(row_index, None);
+        // }
+
+        table
+            .header(20.0, |mut header| {
+                header.col(|ui| {
+                    ui.strong("File");
+                });
+                header.col(|ui| {
+                    ui.strong("Std. Dev.");
+                });
+            })
+            .body(|mut body| {
+                // Gotta clone to prevent deadlocks
+                let files = self.files.read().clone();
+
+                for file in files.selected_paths() {
+                    body.row(18.0, |mut row| {
+                        row.col(|ui| {
+                            ui.label(&file.display_name);
+                        });
+
+                        row.col(|ui| {
+                            let std_dev = 1234.56789;
+
+                            ui.label(format!("{:.3} us", std_dev));
+                        });
+
+                        // if row.response().clicked() {
+                        //     self.files.write().toggle_selection(&file.path);
+
+                        //     self.recompute_plots();
+                        // }
+                    });
+                }
+            });
+    }
+
     /// Collect all selected files, go through them and compute chart data.
     fn recompute_plots(&self) {
         let files = self.files.read();
@@ -211,7 +262,16 @@ impl eframe::App for MyApp {
             StripBuilder::new(ui)
                 .size(Size::remainder())
                 .size(Size::remainder())
+                .size(Size::remainder())
                 .vertical(|mut strip| {
+                    strip.cell(|ui| {
+                        ui.heading("Statistics");
+
+                        egui::ScrollArea::vertical().show(ui, |ui| {
+                            self.stats_list(ui);
+                        });
+                    });
+
                     // TX/RX round trip time
                     strip.cell(|ui| {
                         StripBuilder::new(ui)
