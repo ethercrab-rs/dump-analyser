@@ -1,3 +1,7 @@
 [workspace]
 resolver = "2"
 members = ["analyser", "analyser-gui"]
+
+[profile.profiling]
+inherits = "release"
+debug = true
