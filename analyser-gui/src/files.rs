@@ -1,4 +1,5 @@
 use dump_analyser::PcapFile;
+use hdrhistogram::Histogram;
 use parking_lot::RwLock;
 use statrs::statistics::{Data, OrderStatistics, Statistics};
 use std::{
@@ -17,6 +18,9 @@ pub struct DumpFile {
 
     pub round_trip_times: Vec<[f64; 2]>,
     pub cycle_delta_times: Vec<[f64; 2]>,
+
+    pub round_trip_histo: Histogram<u32>,
+    pub cycle_delta_histo: Histogram<u32>,
 
     pub round_trip_stats: DumpFileStats,
     pub cycle_delta_stats: DumpFileStats,
@@ -141,9 +145,28 @@ impl DumpFiles {
                         })
                         .collect::<Vec<_>>();
 
+                    let round_trip_stats = DumpFileStats::new(&round_trip_times);
+                    let cycle_delta_stats = DumpFileStats::new(&cycle_delta_times);
+
+                    let mut round_trip_histo =
+                        Histogram::new_with_max(round_trip_stats.max as u64, 3).expect("Histo");
+
+                    for [_x, y] in round_trip_times.iter() {
+                        round_trip_histo.record(*y as u64).ok();
+                    }
+
+                    let mut cycle_delta_histo =
+                        Histogram::new_with_max(cycle_delta_stats.max as u64, 3).expect("Histo");
+
+                    for [_x, y] in cycle_delta_times.iter() {
+                        cycle_delta_histo.record(*y as u64).ok();
+                    }
+
                     scratch.write().push(DumpFile {
-                        round_trip_stats: DumpFileStats::new(&round_trip_times),
-                        cycle_delta_stats: DumpFileStats::new(&cycle_delta_times),
+                        round_trip_stats,
+                        cycle_delta_stats,
+                        round_trip_histo,
+                        cycle_delta_histo,
                         selected: false,
                         path: path.clone(),
                         display_name: path.file_stem().unwrap().to_string_lossy().to_string(),
