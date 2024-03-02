@@ -1,4 +1,4 @@
-use analyser_gui::files::DumpFiles;
+use analyser_gui::files::{DumpFile, DumpFiles};
 use eframe::egui;
 use egui::{TextStyle, Ui};
 use egui_extras::{Column, TableBuilder};
@@ -45,29 +45,37 @@ impl MyApp {
                 });
             })
             .body(|mut body| {
-                // Gotta clone to prevent deadlocks
-                let files = self.files.read().clone();
+                let names = self
+                    .files
+                    .read_arc_recursive()
+                    .all()
+                    .iter()
+                    .map(|f| (f.path.clone(), f.selected, f.display_name.clone()))
+                    .collect::<Vec<_>>();
 
-                for (row_index, file) in files.all().iter().enumerate() {
+                for (row_index, (path, selected, file)) in names.into_iter().enumerate() {
                     body.row(18.0, |mut row| {
-                        row.set_selected(file.selected);
+                        row.set_selected(selected);
 
                         row.col(|ui| {
                             ui.label(row_index.to_string());
                         });
                         row.col(|ui| {
-                            ui.label(&file.display_name);
+                            ui.label(&file);
                         });
 
                         if row.response().clicked() {
-                            self.files.write().toggle_selection(&file.path);
+                            self.files
+                                .try_write_arc()
+                                .expect("Write locked")
+                                .toggle_selection(&path);
                         }
                     });
                 }
             });
     }
 
-    fn round_trip_stats_list(&mut self, ui: &mut Ui) {
+    fn round_trip_stats_list(&mut self, ui: &mut Ui, selected_files: &[&DumpFile]) {
         ui.heading("TX/RX statistics");
 
         egui::ScrollArea::vertical().show(ui, |ui| {
@@ -95,7 +103,7 @@ impl MyApp {
                     });
                 })
                 .body(|mut body| {
-                    for item in self.files.read().selected_paths() {
+                    for item in selected_files.iter() {
                         let values = item.round_trip_times.iter().map(|[_x, y]| y);
 
                         body.row(18.0, |mut row| {
@@ -153,7 +161,8 @@ impl MyApp {
             (
                 0usize,
                 self.files
-                    .read()
+                    .try_read_recursive_arc()
+                    .expect("Compute bounds")
                     .selected_paths()
                     .map(|item| item.num_points)
                     .max()
@@ -240,8 +249,12 @@ impl eframe::App for MyApp {
                 .size(Size::remainder())
                 .size(Size::remainder())
                 .vertical(|mut strip| {
+                    let borrow = self.files.read_arc_recursive();
+
+                    let files = borrow.selected_paths().collect::<Vec<_>>();
+
                     strip.cell(|ui| {
-                        self.round_trip_stats_list(ui);
+                        self.round_trip_stats_list(ui, &files);
                     });
 
                     // TX/RX round trip time
@@ -263,7 +276,7 @@ impl eframe::App for MyApp {
                                         .show(ui, |plot_ui| {
                                             let bounds = self.compute_bounds(plot_ui);
 
-                                            for item in self.files.read().selected_paths() {
+                                            for item in files.iter() {
                                                 let points =
                                                     self.aggregate(bounds, &item.round_trip_times);
 
@@ -295,7 +308,7 @@ impl eframe::App for MyApp {
                                         .show(ui, |plot_ui| {
                                             let bounds = self.compute_bounds(plot_ui);
 
-                                            for item in self.files.read().selected_paths() {
+                                            for item in files.iter() {
                                                 let points =
                                                     self.aggregate(bounds, &item.cycle_delta_times);
 

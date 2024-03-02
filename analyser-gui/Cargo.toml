@@ -23,7 +23,10 @@ tokio = { version = "1.36.0", features = [
     "rt-multi-thread",
     "sync",
 ] }
-parking_lot = { version = "0.12.1", features = ["deadlock_detection"] }
+parking_lot = { version = "0.12.1", features = [
+    "deadlock_detection",
+    "arc_lock",
+] }
 hdrhistogram = { version = "7.5.4", default-features = false }
 statrs = { version = "0.16.0", default-features = false }
 

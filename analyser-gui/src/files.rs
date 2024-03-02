@@ -1,13 +1,15 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{BTreeMap, HashSet},
     fs,
     path::{Path, PathBuf},
+    thread,
 };
 
 use dump_analyser::PcapFile;
+use parking_lot::RwLock;
 
 #[derive(Debug, Clone)]
-pub struct Item {
+pub struct DumpFile {
     pub path: PathBuf,
     pub display_name: String,
     pub selected: bool,
@@ -20,7 +22,7 @@ pub struct Item {
 
 #[derive(Default, Clone)]
 pub struct DumpFiles {
-    pub names: HashMap<PathBuf, Item>,
+    pub names: BTreeMap<PathBuf, DumpFile>,
 }
 
 impl DumpFiles {
@@ -28,7 +30,7 @@ impl DumpFiles {
         assert!(path.is_dir(), "Path must point to a directory");
 
         let mut self_ = Self {
-            names: HashMap::new(),
+            names: BTreeMap::new(),
         };
 
         let paths = fs::read_dir(path)
@@ -46,6 +48,8 @@ impl DumpFiles {
     }
 
     pub fn update_items(&mut self, paths: Vec<PathBuf>) {
+        let scratch = RwLock::new(Vec::with_capacity(paths.len()));
+
         let paths = paths
             .into_iter()
             .filter(|path| {
@@ -57,39 +61,44 @@ impl DumpFiles {
 
         let new = paths.difference(&n2);
 
-        for path in new.into_iter() {
-            let pairs = PcapFile::new(path).match_tx_rx();
+        thread::scope(|s| {
+            for path in new.into_iter() {
+                s.spawn(|| {
+                    let pairs = PcapFile::new(path).match_tx_rx();
 
-            let round_trip_times = pairs
-                .iter()
-                .enumerate()
-                .map(|(i, item)| [i as f64, item.delta_time.as_nanos() as f64 / 1000.0])
-                .collect();
+                    let round_trip_times = pairs
+                        .iter()
+                        .enumerate()
+                        .map(|(i, item)| [i as f64, item.delta_time.as_nanos() as f64 / 1000.0])
+                        .collect();
 
-            let cycle_delta_times = pairs
-                .windows(2)
-                .into_iter()
-                .enumerate()
-                .map(|(i, stats)| {
-                    let [prev, curr] = stats else { unreachable!() };
+                    let cycle_delta_times = pairs
+                        .windows(2)
+                        .into_iter()
+                        .enumerate()
+                        .map(|(i, stats)| {
+                            let [prev, curr] = stats else { unreachable!() };
 
-                    let t = curr.tx_time.as_nanos() - prev.tx_time.as_nanos();
+                            let t = curr.tx_time.as_nanos() - prev.tx_time.as_nanos();
 
-                    [i as f64, t as f64 / 1000.0]
-                })
-                .collect();
+                            [i as f64, t as f64 / 1000.0]
+                        })
+                        .collect();
 
-            self.names.insert(
-                path.clone(),
-                Item {
-                    selected: false,
-                    path: path.clone(),
-                    display_name: path.file_stem().unwrap().to_string_lossy().to_string(),
-                    round_trip_times,
-                    cycle_delta_times,
-                    num_points: pairs.len(),
-                },
-            );
+                    scratch.write().push(DumpFile {
+                        selected: false,
+                        path: path.clone(),
+                        display_name: path.file_stem().unwrap().to_string_lossy().to_string(),
+                        round_trip_times,
+                        cycle_delta_times,
+                        num_points: pairs.len(),
+                    });
+                });
+            }
+        });
+
+        for new in scratch.into_inner().into_iter() {
+            self.names.insert(new.path.clone(), new);
         }
     }
 
@@ -111,11 +120,11 @@ impl DumpFiles {
         }
     }
 
-    pub fn selected_paths(&self) -> impl Iterator<Item = &Item> {
+    pub fn selected_paths(&self) -> impl Iterator<Item = &DumpFile> {
         self.names.values().filter(|v| v.selected)
     }
 
-    pub fn all(&self) -> Vec<&Item> {
+    pub fn all(&self) -> Vec<&DumpFile> {
         let mut sorted = self.names.values().collect::<Vec<_>>();
 
         sorted.sort_by_key(|item| &item.display_name);
