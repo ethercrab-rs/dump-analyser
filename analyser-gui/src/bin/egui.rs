@@ -244,7 +244,7 @@ impl MyApp {
                 let xs = chunk.iter().map(|[x, _y]| *x);
 
                 // Put X coord in middle of chunk
-                let x = xs.clone().sum::<f64>() / stride as f64;
+                let x = xs.clone().sum::<f64>() / chunk.len() as f64;
 
                 [
                     [
