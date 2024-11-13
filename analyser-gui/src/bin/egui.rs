@@ -541,7 +541,9 @@ async fn main() -> Result<(), eframe::Error> {
         ..Default::default()
     };
 
-    let dumps_path = PathBuf::from("./dumps");
+    let dumps_path = std::env::args().nth(1).unwrap_or("./dumps".to_string());
+
+    let dumps_path = PathBuf::from(dumps_path);
 
     eframe::run_native(
         "eframe template",
