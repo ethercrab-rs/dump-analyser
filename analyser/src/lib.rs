@@ -95,15 +95,6 @@ impl PcapFile {
 
         let section = capture_file.section();
 
-        let os = section
-            .options
-            .iter()
-            .find_map(|opt| match opt {
-                SectionHeaderOption::OS(os) => Some(os.to_string()),
-                _ => None,
-            })
-            .unwrap_or_else(|| "(unknown os)".to_string());
-
         let cpu = section
             .options
             .iter()
