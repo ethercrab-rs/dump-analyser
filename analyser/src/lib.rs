@@ -1,6 +1,8 @@
 pub mod pdu;
 
 use clap::Parser;
+use pcap_file::pcapng::blocks::interface_description::InterfaceDescriptionOption;
+use pcap_file::pcapng::blocks::section_header::SectionHeaderOption;
 use pcap_file::pcapng::{Block, PcapNgReader};
 use pdu::{parse_pdu, Frame};
 use serde_with::serde_as;
@@ -61,6 +63,14 @@ pub struct PcapFile {
     pub packet_number: usize,
 
     pub scenario: String,
+
+    pub cpu: String,
+
+    pub if_name: String,
+
+    pub timestamp_resolution: u8,
+
+    pub os: String,
 }
 
 impl Iterator for PcapFile {
@@ -80,12 +90,78 @@ impl PcapFile {
                 e
             })
             .expect("Error opening file");
-        let capture_file = PcapNgReader::new(file).expect("Failed to init PCAP reader");
+
+        let mut capture_file = PcapNgReader::new(file).expect("Failed to init PCAP reader");
+
+        let section = capture_file.section();
+
+        let os = section
+            .options
+            .iter()
+            .find_map(|opt| match opt {
+                SectionHeaderOption::OS(os) => Some(os.to_string()),
+                _ => None,
+            })
+            .unwrap_or_else(|| "(unknown os)".to_string());
+
+        let cpu = section
+            .options
+            .iter()
+            .find_map(|opt| match opt {
+                SectionHeaderOption::Hardware(hw) => Some(hw.to_string()),
+                _ => None,
+            })
+            .unwrap_or_else(|| "(unknown hardware)".to_string());
+
+        let os = section
+            .options
+            .iter()
+            .find_map(|opt| match opt {
+                SectionHeaderOption::OS(os) => Some(os.to_string()),
+                _ => None,
+            })
+            .unwrap_or_else(|| "(unknown OS)".to_string());
+
+        let mut if_name = "(unnamed interface)".to_string();
+        // Default to nanosecons
+        let mut timestamp_resolution = 9;
+
+        while let Some(block) = capture_file.next_block() {
+            let block = block.unwrap();
+
+            match block {
+                Block::EnhancedPacket(_) => panic!("Encountered packet block before header!"),
+                Block::InterfaceDescription(i) => {
+                    if let Some(name) = i.options.iter().find_map(|opt| match opt {
+                        InterfaceDescriptionOption::IfName(n) => Some(n.to_string()),
+                        _ => None,
+                    }) {
+                        if_name = name.to_string()
+                    }
+
+                    if let Some(resolution) = i.options.iter().find_map(|opt| match opt {
+                        InterfaceDescriptionOption::IfTsResol(ts) => Some(*ts),
+                        _ => None,
+                    }) {
+                        timestamp_resolution = resolution;
+                    }
+
+                    break;
+                }
+                _ => (),
+            }
+        }
+
+        let scenario = path.file_stem().unwrap().to_string_lossy().to_string();
 
         Self {
             capture_file,
             packet_number: 0,
-            scenario: path.file_stem().unwrap().to_string_lossy().to_string(),
+            scenario,
+            cpu,
+            os,
+            if_name,
+            timestamp_resolution,
         }
     }
 

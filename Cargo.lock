@@ -2627,12 +2627,13 @@ checksum = "de3145af08024dea9fa9914f381a17b8fc6034dfb00f3a84013f7ff43f29ed4c"
 
 [[package]]
 name = "pcap-file"
-version = "2.0.0"
+version = "3.0.0-rc1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1fc1f139757b058f9f37b76c48501799d12c9aa0aa4c0d4c980b062ee925d1b2"
+checksum = "dc44e44ff0157dd4a876d81d83ae1bdb3b031873ca042116977908b987092f44"
 dependencies = [
  "byteorder_slice",
  "derive-into-owned",
+ "once_cell",
  "thiserror",
 ]
 

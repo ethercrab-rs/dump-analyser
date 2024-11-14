@@ -24,6 +24,8 @@ pub struct DumpFile {
 
     pub round_trip_stats: DumpFileStats,
     pub cycle_delta_stats: DumpFileStats,
+    pub cpu: String,
+    pub os: String,
 }
 
 #[derive(Debug, Clone)]
@@ -124,7 +126,9 @@ impl DumpFiles {
         thread::scope(|s| {
             for path in new.into_iter() {
                 s.spawn(|| {
-                    let pairs = PcapFile::new(path).match_tx_rx();
+                    let mut capture = PcapFile::new(path);
+
+                    let pairs = capture.match_tx_rx();
 
                     let round_trip_times = pairs
                         .iter()
@@ -171,6 +175,8 @@ impl DumpFiles {
                         round_trip_times,
                         cycle_delta_times,
                         num_points: pairs.len(),
+                        cpu: capture.cpu,
+                        os: capture.os,
                     });
                 });
             }

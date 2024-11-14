@@ -93,6 +93,8 @@ impl MyApp {
                 .column(Column::auto())
                 .column(Column::auto())
                 .column(Column::auto())
+                .column(Column::auto())
+                .column(Column::auto())
                 .min_scrolled_height(0.0);
             // .sense(egui::Sense::click());
 
@@ -129,6 +131,12 @@ impl MyApp {
                     });
                     header.col(|ui| {
                         ui.strong("Max");
+                    });
+                    header.col(|ui| {
+                        ui.strong("CPU");
+                    });
+                    header.col(|ui| {
+                        ui.strong("OS");
                     });
                 })
                 .body(|mut body| {
@@ -178,6 +186,12 @@ impl MyApp {
                             });
                             row.col(|ui| {
                                 ui.colored_label(c, format!("{:.3} us", item.round_trip_stats.max));
+                            });
+                            row.col(|ui| {
+                                ui.colored_label(c, &item.cpu);
+                            });
+                            row.col(|ui| {
+                                ui.colored_label(c, &item.os);
                             });
 
                             // if row.response().clicked() {
@@ -546,7 +560,7 @@ async fn main() -> Result<(), eframe::Error> {
     let dumps_path = PathBuf::from(dumps_path);
 
     eframe::run_native(
-        "eframe template",
+        "Dump Analyser",
         native_options,
         Box::new(|cc| {
             let ctx = cc.egui_ctx.clone();
