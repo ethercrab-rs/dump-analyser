@@ -248,7 +248,9 @@ impl MyApp {
         (start_count, end_count, stride): (usize, usize, usize),
         series: &[[f64; 2]],
     ) -> Vec<[f64; 2]> {
-        let display_range = start_count..end_count.min(series.len());
+        let end = end_count.min(series.len());
+
+        let display_range = start_count.min(end)..end;
 
         series[display_range]
             .chunks(stride)
