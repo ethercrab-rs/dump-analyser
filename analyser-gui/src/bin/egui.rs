@@ -13,6 +13,7 @@ use notify_debouncer_full::{
     DebounceEventResult, DebouncedEvent,
 };
 use parking_lot::RwLock;
+use std::ffi::OsStr;
 use std::{path::PathBuf, sync::Arc, thread, time::Duration};
 
 struct MyApp {
@@ -600,12 +601,22 @@ async fn main() -> Result<(), eframe::Error> {
                             DebouncedEvent {
                                 event:
                                     Event {
-                                        kind: EventKind::Create(CreateKind::File),
+                                        kind: EventKind::Create(CreateKind::Any),
                                         paths,
                                         ..
                                     },
                                 ..
                             } => {
+                                // Windows is weird and will give us `CreateKind::Any`. Linux uses
+                                // `CreateKind::File`. To support both, we'll filter the events
+                                // based on the path.
+                                let paths = paths
+                                    .into_iter()
+                                    .filter(|p| {
+                                        p.is_file() && p.extension() == Some(&OsStr::new("pcapng"))
+                                    })
+                                    .collect::<Vec<_>>();
+
                                 println!("Files created {:?}", paths);
 
                                 files.write().update_items(paths);
@@ -613,12 +624,19 @@ async fn main() -> Result<(), eframe::Error> {
                             DebouncedEvent {
                                 event:
                                     Event {
-                                        kind: EventKind::Remove(RemoveKind::File),
+                                        // Same as above; this should be `RemoveKind::File` but
+                                        // Windows only gives us `RemoveKind::Any`. Ugh.
+                                        kind: EventKind::Remove(RemoveKind::Any),
                                         paths,
                                         ..
                                     },
                                 ..
                             } => {
+                                let paths = paths
+                                    .into_iter()
+                                    .filter(|p| p.extension() == Some(&OsStr::new("pcapng")))
+                                    .collect::<Vec<_>>();
+
                                 println!("Files deleted {:?}", paths);
 
                                 files.write().remove_items(paths);
@@ -635,7 +653,7 @@ async fn main() -> Result<(), eframe::Error> {
                             } => {
                                 println!("Files updated {:?}", event.paths);
                             }
-                            _other => println!("Other events"),
+                            _other => println!("Other events {:?}", _other),
                         }
                     }
 
