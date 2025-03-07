@@ -51,16 +51,16 @@ fn main() -> Result<(), ethercrab::error::Error> {
     let mut reader = PcapFile::new(&args.file);
 
     // EEPROM maps for each slave, by address
-    let mut slave_maps = HashMap::new();
+    let mut eeprom_images = HashMap::new();
 
     /// EEPROM data map for a single device.
-    struct SlaveMap {
+    struct SubDeviceImage {
         /// EEPROM data map.
         data: Vec<u8>,
 
         /// The address set by the master for reading. Data returned from the slave is written into
         /// [`data`] starting at this address.
-        addr: u16,
+        eeprom_addr: u16,
     }
 
     while let Some(packet) = reader.next() {
@@ -88,10 +88,12 @@ fn main() -> Result<(), ethercrab::error::Error> {
         // Allocate 65K for each slave's EEPROM. The actual data could be much smaller, but it's
         // small enough to just use the max address (u16::MAX) instead of tracking how big the vec
         // should be.
-        let slave_map = slave_maps.entry(slave_address).or_insert(SlaveMap {
-            data: vec![0u8; u16::MAX.into()],
-            addr: 0,
-        });
+        let eeprom_image = eeprom_images
+            .entry(slave_address)
+            .or_insert(SubDeviceImage {
+                data: vec![0u8; u16::MAX.into()],
+                eeprom_addr: 0,
+            });
 
         // Detect an address set by the master. 6 byte packet is SII control header and 2x u16
         // address (second is ignored).
@@ -99,11 +101,16 @@ fn main() -> Result<(), ethercrab::error::Error> {
             && packet.data.len() == 6
             && packet.from_master
         {
-            let addr = u16::from_le_bytes(packet.data[2..4].try_into().unwrap());
+            let eeprom_addr = u16::from_le_bytes(packet.data[2..4].try_into().unwrap());
 
-            // log::info!("{:#06x} Set EEPROM addr to {:#06x}", slave_address, addr);
+            log::debug!(
+                "{:#06x} Set EEPROM addr to {:#06x}",
+                slave_address,
+                eeprom_addr
+            );
 
-            slave_map.addr = addr;
+            // Turn EEPROM word addressing into bytes
+            eeprom_image.eeprom_addr = eeprom_addr * 2;
         }
         // Response from device
         else if register == u16::from(RegisterAddress::SiiData) && !packet.from_master {
@@ -116,12 +123,15 @@ fn main() -> Result<(), ethercrab::error::Error> {
 
             let d = packet.data;
 
-            // log::info!(
-            //     "{:#06x} EEPROM data at {:#06x} {:#x?}",
-            //     slave_address, slave_map.addr, d
-            // );
+            log::debug!(
+                "{:#06x} EEPROM data at {:#06x} {:02x?}",
+                slave_address,
+                eeprom_image.eeprom_addr,
+                d
+            );
 
-            slave_map.data[usize::from(slave_map.addr)..][..d.len()].copy_from_slice(&d);
+            eeprom_image.data[usize::from(eeprom_image.eeprom_addr)..][..d.len()]
+                .copy_from_slice(&d);
         }
     }
 
@@ -131,7 +141,7 @@ fn main() -> Result<(), ethercrab::error::Error> {
 
     fs::create_dir_all(&dir).expect("Could not create dumps dir");
 
-    for (addr, eeprom) in slave_maps {
+    for (addr, eeprom) in eeprom_images {
         let mut filename = dir.clone();
         filename.push(format!("eeprom-{:#06x}.hex", addr));
 
