@@ -5,7 +5,7 @@
 
 use std::time::Duration;
 
-use crate::{ETHERCAT_ETHERTYPE, MASTER_ADDR};
+use crate::ETHERCAT_ETHERTYPE;
 use ethercrab::{Command, Reads, Writes};
 use nom::{
     bytes::complete::take,
@@ -79,7 +79,7 @@ pub fn parse_pdu(mut raw_packet: EthernetFrame<Vec<u8>>) -> Result<Frame, etherc
         "Not a valid EtherCAT frame"
     );
 
-    let from_master = raw_packet.src_addr() == MASTER_ADDR;
+    let from_master = !raw_packet.src_addr().is_local();
 
     let i = raw_packet.payload_mut();
 

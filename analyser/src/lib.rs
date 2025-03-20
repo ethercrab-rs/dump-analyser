@@ -12,8 +12,6 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::{fs::File, time::Duration};
 
-const MASTER_ADDR: EthernetAddress = EthernetAddress([0x10, 0x10, 0x10, 0x10, 0x10, 0x10]);
-const REPLY_ADDR: EthernetAddress = EthernetAddress([0x12, 0x10, 0x10, 0x10, 0x10, 0x10]);
 const ETHERCAT_ETHERTYPE_RAW: u16 = 0x88a4;
 const ETHERCAT_ETHERTYPE: EthernetProtocol = EthernetProtocol::Unknown(ETHERCAT_ETHERTYPE_RAW);
 
@@ -71,6 +69,19 @@ pub struct PcapFile {
     pub timestamp_resolution: u8,
 
     pub os: String,
+}
+
+impl std::fmt::Debug for PcapFile {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PcapFile")
+            .field("packet_number", &self.packet_number)
+            .field("scenario", &self.scenario)
+            .field("cpu", &self.cpu)
+            .field("if_name", &self.if_name)
+            .field("timestamp_resolution", &self.timestamp_resolution)
+            .field("os", &self.os)
+            .finish()
+    }
 }
 
 impl Iterator for PcapFile {
@@ -181,7 +192,7 @@ impl PcapFile {
                 ),
             };
 
-            if raw.src_addr() != MASTER_ADDR && raw.src_addr() != REPLY_ADDR {
+            if raw.ethertype() != ETHERCAT_ETHERTYPE {
                 continue;
             }
 

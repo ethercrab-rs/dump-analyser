@@ -63,6 +63,8 @@ fn main() -> Result<(), ethercrab::error::Error> {
         eeprom_addr: u16,
     }
 
+    log::info!("{:?}", reader);
+
     while let Some(packet) = reader.next() {
         // EEPROM reader currently only uses FPRD and FPWR so we'll skip anything else.
         let slave_address = match packet.command {
