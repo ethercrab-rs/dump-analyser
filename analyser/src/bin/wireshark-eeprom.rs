@@ -65,6 +65,8 @@ fn main() -> Result<(), ethercrab::error::Error> {
 
     log::info!("{:?}", reader);
 
+    let mut addr = 0;
+
     while let Some(packet) = reader.next() {
         // EEPROM reader currently only uses FPRD and FPWR so we'll skip anything else.
         let slave_address = match packet.command {
@@ -93,7 +95,7 @@ fn main() -> Result<(), ethercrab::error::Error> {
         let eeprom_image = eeprom_images
             .entry(slave_address)
             .or_insert(SubDeviceImage {
-                data: vec![0u8; u16::MAX.into()],
+                data: vec![0u8; usize::from(u16::MAX) * 2],
                 eeprom_addr: 0,
             });
 
@@ -111,8 +113,7 @@ fn main() -> Result<(), ethercrab::error::Error> {
                 eeprom_addr
             );
 
-            // Turn EEPROM word addressing into bytes
-            eeprom_image.eeprom_addr = eeprom_addr * 2;
+            addr = eeprom_addr;
         }
         // Response from device
         else if register == u16::from(RegisterAddress::SiiData) && !packet.from_master {
@@ -128,12 +129,21 @@ fn main() -> Result<(), ethercrab::error::Error> {
             log::debug!(
                 "{:#06x} EEPROM data at {:#06x} {:02x?}",
                 slave_address,
-                eeprom_image.eeprom_addr,
+                addr,
                 d
             );
 
             eeprom_image.data[usize::from(eeprom_image.eeprom_addr)..][..d.len()]
                 .copy_from_slice(&d);
+
+            let Some(next_addr) = addr.checked_mul(2) else {
+                log::warn!("Invalid EEPROM address {:#06x}", u32::from(addr) * 2);
+
+                break;
+            };
+
+            // Turn EEPROM word addressing into bytes
+            eeprom_image.eeprom_addr = next_addr;
         }
     }
 
