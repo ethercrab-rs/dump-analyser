@@ -137,13 +137,15 @@ fn main() -> Result<(), ethercrab::error::Error> {
 
     // Now write out each device's EEPROM to a file
 
-    let dir = PathBuf::from("./eeprom-dumps");
+    // let dir = PathBuf::from("./eeprom-dumps");
+    let dir = args.file.parent().unwrap().to_path_buf();
+    let base_file_name = args.file.file_stem().unwrap().to_string_lossy();
 
     fs::create_dir_all(&dir).expect("Could not create dumps dir");
 
     for (addr, eeprom) in eeprom_images {
         let mut filename = dir.clone();
-        filename.push(format!("eeprom-{:#06x}.hex", addr));
+        filename.push(format!("{}-eeprom-{:#06x}.hex", base_file_name, addr));
 
         log::info!("Write {}", filename.display());
 
