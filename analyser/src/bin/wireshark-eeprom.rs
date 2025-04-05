@@ -65,8 +65,6 @@ fn main() -> Result<(), ethercrab::error::Error> {
 
     log::info!("{:?}", reader);
 
-    let mut addr = 0;
-
     while let Some(packet) = reader.next() {
         // EEPROM reader currently only uses FPRD and FPWR so we'll skip anything else.
         let slave_address = match packet.command {
@@ -95,7 +93,7 @@ fn main() -> Result<(), ethercrab::error::Error> {
         let eeprom_image = eeprom_images
             .entry(slave_address)
             .or_insert(SubDeviceImage {
-                data: vec![0u8; usize::from(u16::MAX) * 2],
+                data: vec![0u8; usize::from(u16::MAX)],
                 eeprom_addr: 0,
             });
 
@@ -113,23 +111,16 @@ fn main() -> Result<(), ethercrab::error::Error> {
                 eeprom_addr
             );
 
-            addr = eeprom_addr;
+            eeprom_image.eeprom_addr = eeprom_addr;
         }
         // Response from device
         else if register == u16::from(RegisterAddress::SiiData) && !packet.from_master {
-            // Useful for matching with Wireshark prettyprinting
-            // let d = packet
-            //     .data
-            //     .chunks(2)
-            //     .map(|chunk| u16::from_le_bytes(chunk.try_into().unwrap()))
-            //     .collect::<Vec<_>>();
-
             let d = packet.data;
 
             log::debug!(
                 "{:#06x} EEPROM data at {:#06x} {:02x?} {:?}",
                 slave_address,
-                addr,
+                eeprom_image.eeprom_addr,
                 d,
                 d.iter()
                     .map(|byte| char::from_u32(u32::from(*byte))
@@ -138,17 +129,10 @@ fn main() -> Result<(), ethercrab::error::Error> {
                     .collect::<String>()
             );
 
-            eeprom_image.data[usize::from(eeprom_image.eeprom_addr)..][..d.len()]
+            eeprom_image.data[usize::from(eeprom_image.eeprom_addr) * 2..][..d.len()]
                 .copy_from_slice(&d);
 
-            let Some(next_addr) = addr.checked_mul(2) else {
-                log::warn!("Invalid EEPROM address {:#06x}", u32::from(addr) * 2);
-
-                break;
-            };
-
-            // Turn EEPROM word addressing into bytes
-            eeprom_image.eeprom_addr = next_addr;
+            eeprom_image.eeprom_addr += (d.len() / 2) as u16;
         }
     }
 
