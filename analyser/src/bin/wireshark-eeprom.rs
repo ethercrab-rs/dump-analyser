@@ -107,7 +107,7 @@ fn main() -> Result<(), ethercrab::error::Error> {
         {
             let eeprom_addr = u16::from_le_bytes(packet.data[2..4].try_into().unwrap());
 
-            log::debug!(
+            log::trace!(
                 "{:#06x} Set EEPROM addr to {:#06x}",
                 slave_address,
                 eeprom_addr
