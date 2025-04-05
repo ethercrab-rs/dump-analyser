@@ -127,10 +127,15 @@ fn main() -> Result<(), ethercrab::error::Error> {
             let d = packet.data;
 
             log::debug!(
-                "{:#06x} EEPROM data at {:#06x} {:02x?}",
+                "{:#06x} EEPROM data at {:#06x} {:02x?} {:?}",
                 slave_address,
                 addr,
-                d
+                d,
+                d.iter()
+                    .map(|byte| char::from_u32(u32::from(*byte))
+                        .filter(|c| c.is_alphanumeric() || c.is_ascii_punctuation())
+                        .unwrap_or('.'))
+                    .collect::<String>()
             );
 
             eeprom_image.data[usize::from(eeprom_image.eeprom_addr)..][..d.len()]
