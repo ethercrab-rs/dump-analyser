@@ -7,13 +7,14 @@ edition = "2021"
 
 [dependencies]
 clap = { version = "4.4.6", features = ["derive"] }
+clap-num = "1.2.0"
 csv = "1.3.0"
 env_logger = "0.10.0"
 ethercrab = { version = "0.4.0-rc.1", default-features = false, features = [
     "std",
 ] }
 log = "0.4.20"
-nom = { version = "7.1.3", default-features = false }
+nom = { version = "7.1.3", default-features = false, features = ["alloc"] }
 num_enum = { version = "0.7.0", default-features = false }
 packed_struct = { version = "0.10.1", default-features = false }
 pcap-file = "3.0.0-rc1"
