@@ -215,16 +215,21 @@ impl PcapFile {
         while let Some(packet) = self.next_line() {
             let start_offset = *start_offset.get_or_insert(packet.time);
 
+            // TODO: Support multiple PDUs
+            let Some(first_pdu) = packet.pdus.first() else {
+                continue;
+            };
+
             // Newly sent PDU
             if packet.from_master {
                 pairs.push(PduStat {
                     scenario: self.scenario.clone(),
                     packet_number: packet.wireshark_packet_number,
-                    index: packet.index,
+                    index: first_pdu.index,
                     tx_time: packet.time - start_offset,
                     rx_time: Duration::default(),
                     delta_time: Duration::default(),
-                    command: packet.command.to_string(),
+                    command: first_pdu.command.to_string(),
                 });
             }
             // Response to existing sent PDU
@@ -233,7 +238,7 @@ impl PcapFile {
                 let sent = pairs
                     .iter_mut()
                     .rev()
-                    .find(|stat| stat.index == packet.index)
+                    .find(|stat| stat.index == first_pdu.index)
                     .expect("Could not find sent packet");
 
                 sent.rx_time = packet.time - start_offset;

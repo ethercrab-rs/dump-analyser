@@ -66,15 +66,20 @@ fn main() -> Result<(), ethercrab::error::Error> {
     log::info!("{:?}", reader);
 
     while let Some(packet) = reader.next() {
+        // TODO: Support multiple PDUs
+        let Some(first_pdu) = packet.pdus.first() else {
+            continue;
+        };
+
         // EEPROM reader currently only uses FPRD and FPWR so we'll skip anything else.
-        let slave_address = match packet.command {
+        let slave_address = match first_pdu.command {
             Command::Read(Reads::Fprd { address, .. })
             | Command::Write(Writes::Fpwr { address, .. }) => address,
 
             _ => continue,
         };
 
-        let register = command_register(&packet.command).filter(|r| {
+        let register = command_register(&first_pdu.command).filter(|r| {
             [
                 u16::from(RegisterAddress::SiiConfig),
                 u16::from(RegisterAddress::SiiControl),
@@ -100,10 +105,10 @@ fn main() -> Result<(), ethercrab::error::Error> {
         // Detect an address set by the master. 6 byte packet is SII control header and 2x u16
         // address (second is ignored).
         if register == u16::from(RegisterAddress::SiiControl)
-            && packet.data.len() == 6
+            && first_pdu.data.len() == 6
             && packet.from_master
         {
-            let eeprom_addr = u16::from_le_bytes(packet.data[2..4].try_into().unwrap());
+            let eeprom_addr = u16::from_le_bytes(first_pdu.data[2..4].try_into().unwrap());
 
             log::trace!(
                 "{:#06x} Set EEPROM addr to {:#06x}",
@@ -115,7 +120,7 @@ fn main() -> Result<(), ethercrab::error::Error> {
         }
         // Response from device
         else if register == u16::from(RegisterAddress::SiiData) && !packet.from_master {
-            let d = packet.data;
+            let d = first_pdu.data.as_slice();
 
             log::debug!(
                 "{:#06x} EEPROM data at {:#06x} {:02x?} {:?}",

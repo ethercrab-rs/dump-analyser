@@ -11,6 +11,7 @@ use nom::{
     bytes::complete::take,
     combinator::{map, map_res, verify},
     error::ParseError,
+    multi::{fold_many0, many0},
     number::complete::{le_u16, le_u32, u8},
     sequence::pair,
     IResult,
@@ -23,13 +24,23 @@ const LEN_MASK: u16 = 0b0000_0111_1111_1111;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Frame {
     pub header: FrameHeader,
-    pub command: Command,
-    pub data: Vec<u8>,
+    // pub command: Command,
+    // pub data: Vec<u8>,
     pub from_master: bool,
-    pub working_counter: u16,
-    pub index: u8,
+    // pub working_counter: u16,
+    // pub index: u8,
     pub time: Duration,
     pub wireshark_packet_number: usize,
+    pub pdus: Vec<Pdu>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct Pdu {
+    pub index: u8,
+    pub command: Command,
+    pub flags: PduFlags,
+    pub data: Vec<u8>,
+    pub working_counter: u16,
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -88,32 +99,50 @@ pub fn parse_pdu(mut raw_packet: EthernetFrame<Vec<u8>>) -> Result<Frame, etherc
     // Only take as much as the header says we should
     let (_rest, i) = take::<_, _, ()>(header.payload_len())(i).expect("Body");
 
-    let (i, command_code) = u8::<_, ()>(i).expect("command_code");
-    let (i, index) = u8::<_, ()>(i).expect("index");
+    // let mut pdus = Vec::new();
 
-    let (i, command) = parse_command(command_code, i).expect("command");
+    // let mut i2 = i;
 
-    let (i, flags) =
-        map_res(take::<_, _, ()>(2usize), PduFlags::unpack_from_slice)(i).expect("flags");
-    let (i, _irq) = le_u16::<_, ()>(i).expect("_irq");
-    let (i, data) = take::<_, _, ()>(flags.length)(i).expect("data");
-    let (i, working_counter) = le_u16::<_, ()>(i).expect("working_counter");
+    let (_rest, pdus) = many0(parse_pdu_inner)(i).expect("Bad parse");
 
     // `_i` should be empty as we `take()`d an exact amount above.
-    debug_assert_eq!(i.len(), 0, "trailing data in received frame");
-
-    let data = data.to_vec();
+    // debug_assert_eq!(
+    //     i.len(),
+    //     0,
+    //     "{} bytes of trailing data in received frame",
+    //     i.len()
+    // );
 
     Ok(Frame {
         header,
-        data,
-        command,
         from_master,
-        working_counter,
-        index,
         time: Duration::default(),
         wireshark_packet_number: 0,
+        pdus,
     })
+}
+
+fn parse_pdu_inner(i: &[u8]) -> IResult<&[u8], Pdu> {
+    let (i, command_code) = u8(i)?;
+    let (i, index) = u8(i)?;
+
+    let (i, command) = parse_command(command_code, i)?;
+
+    let (i, flags) = map_res(take(2usize), PduFlags::unpack_from_slice)(i)?;
+    let (i, _irq) = le_u16(i)?;
+    let (i, data) = take(flags.length)(i)?;
+    let (i, working_counter) = le_u16(i)?;
+
+    Ok((
+        i,
+        Pdu {
+            index,
+            command,
+            flags,
+            data: data.to_vec(),
+            working_counter,
+        },
+    ))
 }
 
 #[derive(Default, Copy, Clone, Debug, PartialEq, Eq)]
