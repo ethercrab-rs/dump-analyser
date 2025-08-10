@@ -49,7 +49,7 @@ pub struct FrameHeader(pub u16);
 
 impl FrameHeader {
     /// Remove and parse an EtherCAT frame header from the given buffer.
-    pub fn parse<'a, E>(i: &'a [u8]) -> IResult<&[u8], Self, E>
+    pub fn parse<'a, E>(i: &'a [u8]) -> IResult<&'a [u8], Self, E>
     where
         E: ParseError<&'a [u8]>,
     {

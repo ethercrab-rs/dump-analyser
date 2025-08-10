@@ -7,7 +7,7 @@ use egui_extras::{Size, StripBuilder};
 use egui_plot::{Legend, Line, LineStyle, Plot, PlotPoints, VLine};
 use notify_debouncer_full::{
     notify::{
-        event::{AccessKind, AccessMode, CreateKind, RemoveKind},
+        event::{AccessKind, AccessMode, RemoveKind},
         Event, EventKind, RecursiveMode, Watcher,
     },
     DebounceEventResult, DebouncedEvent,
