@@ -11,7 +11,7 @@ use nom::{
     bytes::complete::take,
     combinator::{map, map_res, verify},
     error::ParseError,
-    multi::{fold_many0, many0},
+    multi::many0,
     number::complete::{le_u16, le_u32, u8},
     sequence::pair,
     IResult,

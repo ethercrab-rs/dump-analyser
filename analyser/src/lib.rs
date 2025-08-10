@@ -7,7 +7,7 @@ use pcap_file::pcapng::{Block, PcapNgReader};
 use pdu::{parse_pdu, Frame};
 use serde_with::serde_as;
 use serde_with::DurationNanoSeconds;
-use smoltcp::wire::{EthernetAddress, EthernetFrame, EthernetProtocol};
+use smoltcp::wire::{EthernetFrame, EthernetProtocol};
 use std::path::Path;
 use std::path::PathBuf;
 use std::{fs::File, time::Duration};
