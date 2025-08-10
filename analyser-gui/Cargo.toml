@@ -9,10 +9,10 @@ async-channel = "2.2.0"
 futures = "0.3.30"
 notify-debouncer-full = "0.3.1"
 dump-analyser = { path = "../analyser" }
-egui = { version = "0.26.2", features = ["rayon"] }
-egui_plot = "0.26.2"
-egui_extras = "0.26.2"
-eframe = { version = "0.26.2", default-features = false, features = [
+egui = { version = "0.32.0", features = ["rayon"] }
+egui_plot = "0.33.0"
+egui_extras = "0.32.0"
+eframe = { version = "0.32.0", default-features = false, features = [
     "x11",
     "wgpu",
 ] }
