@@ -1,0 +1,36 @@
+{
+  // Use IntelliSense to learn about possible attributes.
+  // Hover to view descriptions of existing attributes.
+  // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug executable 'egui'",
+      "cargo": {
+        "args": ["build", "--bin=egui", "--package=analyser-gui"],
+        "filter": {
+          "name": "egui",
+          "kind": "bin"
+        }
+      },
+      "args": ["/Users/james/EtherCAT/issue-293/crashes/crash2"],
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug unit tests in executable 'egui'",
+      "cargo": {
+        "args": ["test", "--no-run", "--bin=egui", "--package=analyser-gui"],
+        "filter": {
+          "name": "egui",
+          "kind": "bin"
+        }
+      },
+      "args": [],
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}
