@@ -212,22 +212,22 @@ impl MyApp {
         // Bounds of the plot by data values, not pixels
         let plot_bounds = plot_ui.plot_bounds();
 
-        let (start_count, end_count) = if plot_bounds.min()[0] <= 0.0 {
-            (
-                0usize,
-                self.files
-                    .try_read_recursive_arc()
-                    .expect("Compute bounds")
-                    .selected_paths()
-                    .map(|item| item.num_points)
-                    .max()
-                    .unwrap_or(0),
-            )
-        } else {
-            (plot_bounds.min()[0] as usize, plot_bounds.max()[0] as usize)
-        };
+        let (min_x, max_x) = plot_bounds.range_x().into_inner();
 
-        let values_width = plot_bounds.width();
+        let (start_count, end_count, values_width) = if min_x <= 0.0 {
+            let end_count = self
+                .files
+                .try_read_recursive_arc()
+                .expect("Compute bounds")
+                .selected_paths()
+                .map(|item| item.num_points)
+                .max()
+                .unwrap_or(0);
+
+            (0usize, end_count, end_count as f64)
+        } else {
+            (min_x as usize, max_x as usize, plot_bounds.width())
+        };
 
         let pixels_width = {
             plot_ui.screen_from_plot(plot_bounds.max().into())[0]
