@@ -282,7 +282,8 @@ impl eframe::App for MyApp {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::SidePanel::left("left_panel")
             // .resizable(true)
-            .default_width(200.0)
+            // .default_width(200.0)
+            .min_width(200.0)
             // .width_range(200.0..=500.0)
             .show(ctx, |ui| {
                 // ui.vertical_centered(|ui| {
@@ -346,9 +347,11 @@ impl eframe::App for MyApp {
                                                             );
 
                                                             plot_ui.line(
-                                                                Line::new(PlotPoints::new(points))
-                                                                    .color(idx_to_colour(idx))
-                                                                    .name(&item.display_name),
+                                                                Line::new(
+                                                                    &item.display_name,
+                                                                    PlotPoints::new(points),
+                                                                )
+                                                                .color(idx_to_colour(idx)),
                                                             );
                                                         }
                                                     });
@@ -358,7 +361,7 @@ impl eframe::App for MyApp {
                                                 Plot::new("round_trips_histo")
                                                     // Y is just a count of the bucket, so is meaningless
                                                     .show_y(false)
-                                                    .y_axis_formatter(|_, _, _| String::new())
+                                                    .y_axis_formatter(|_, _| String::new())
                                                     .x_axis_label("Round trip time (us)")
                                                     .legend(Legend::default())
                                                     .show(ui, |plot_ui| {
@@ -382,6 +385,7 @@ impl eframe::App for MyApp {
                                                             // Mean
                                                             plot_ui.vline(
                                                                 VLine::new(
+                                                                    String::new(),
                                                                     item.round_trip_stats.mean,
                                                                 )
                                                                 .style(LineStyle::dashed_dense())
@@ -395,6 +399,7 @@ impl eframe::App for MyApp {
                                                             // Std dev
                                                             plot_ui.vline(
                                                                 VLine::new(
+                                                                    String::new(),
                                                                     item.round_trip_stats.mean
                                                                         - item
                                                                             .round_trip_stats
@@ -406,6 +411,7 @@ impl eframe::App for MyApp {
                                                             );
                                                             plot_ui.vline(
                                                                 VLine::new(
+                                                                    String::new(),
                                                                     item.round_trip_stats.mean
                                                                         + item
                                                                             .round_trip_stats
@@ -417,9 +423,11 @@ impl eframe::App for MyApp {
                                                             );
 
                                                             plot_ui.line(
-                                                                Line::new(PlotPoints::new(points))
-                                                                    .color(c)
-                                                                    .name(&item.display_name),
+                                                                Line::new(
+                                                                    &item.display_name,
+                                                                    PlotPoints::new(points),
+                                                                )
+                                                                .color(c),
                                                             );
                                                         }
                                                     });
@@ -460,9 +468,11 @@ impl eframe::App for MyApp {
                                                             );
 
                                                             plot_ui.line(
-                                                                Line::new(PlotPoints::new(points))
-                                                                    .color(idx_to_colour(idx))
-                                                                    .name(&item.display_name),
+                                                                Line::new(
+                                                                    &item.display_name,
+                                                                    PlotPoints::new(points),
+                                                                )
+                                                                .color(idx_to_colour(idx)),
                                                             );
                                                         }
                                                     });
@@ -472,7 +482,7 @@ impl eframe::App for MyApp {
                                                 Plot::new("cycle_delta_histo")
                                                     // Y is just a count of the bucket, so is meaningless
                                                     .show_y(false)
-                                                    .y_axis_formatter(|_, _, _| String::new())
+                                                    .y_axis_formatter(|_, _| String::new())
                                                     .x_axis_label("Cycle to cycle delta (us)")
                                                     .legend(Legend::default())
                                                     .show(ui, |plot_ui| {
@@ -496,6 +506,7 @@ impl eframe::App for MyApp {
                                                             // Mean
                                                             plot_ui.vline(
                                                                 VLine::new(
+                                                                    String::new(),
                                                                     item.cycle_delta_stats.mean,
                                                                 )
                                                                 .style(LineStyle::dashed_dense())
@@ -509,6 +520,7 @@ impl eframe::App for MyApp {
                                                             // Std dev
                                                             plot_ui.vline(
                                                                 VLine::new(
+                                                                    String::new(),
                                                                     item.cycle_delta_stats.mean
                                                                         - item
                                                                             .cycle_delta_stats
@@ -520,6 +532,7 @@ impl eframe::App for MyApp {
                                                             );
                                                             plot_ui.vline(
                                                                 VLine::new(
+                                                                    String::new(),
                                                                     item.cycle_delta_stats.mean
                                                                         + item
                                                                             .round_trip_stats
@@ -531,9 +544,11 @@ impl eframe::App for MyApp {
                                                             );
 
                                                             plot_ui.line(
-                                                                Line::new(PlotPoints::new(points))
-                                                                    .color(c)
-                                                                    .name(&item.display_name),
+                                                                Line::new(
+                                                                    &item.display_name,
+                                                                    PlotPoints::new(points),
+                                                                )
+                                                                .color(c),
                                                             );
                                                         }
                                                     });
@@ -655,7 +670,7 @@ async fn main() -> Result<(), eframe::Error> {
                 }
             });
 
-            Box::new(MyApp { files })
+            Ok(Box::new(MyApp { files }))
         }),
     )
 }
