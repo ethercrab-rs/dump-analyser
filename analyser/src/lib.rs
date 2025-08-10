@@ -235,11 +235,34 @@ impl PcapFile {
             // Response to existing sent PDU
             else {
                 // Find last sent PDU with this receive PDU's same index
-                let sent = pairs
+                let Some(sent) = pairs
                     .iter_mut()
                     .rev()
                     .find(|stat| stat.index == first_pdu.index)
-                    .expect("Could not find sent packet");
+                else {
+                    // First packet has nothing before it. This will ignore failures for captures
+                    // started _during_ an EtherCAT session.
+                    if packet.wireshark_packet_number == 1 {
+                        continue;
+                    }
+
+                    let search_idx = first_pdu.index;
+
+                    let n = 64;
+
+                    let prevs = pairs
+                        .iter_mut()
+                        .rev()
+                        .take(n)
+                        .map(|stat| stat.index.to_string())
+                        .collect::<Vec<_>>()
+                        .join(",");
+
+                    panic!(
+                        "Packet number {}: Could not find sent packet, looking for index {}, prev {} indices: {:?}",
+                        packet.wireshark_packet_number, search_idx, n, prevs
+                    );
+                };
 
                 sent.rx_time = packet.time - start_offset;
 
