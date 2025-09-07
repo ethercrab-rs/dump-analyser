@@ -1,3 +1,4 @@
+pub mod mailbox;
 pub mod pdu;
 
 use clap::Parser;

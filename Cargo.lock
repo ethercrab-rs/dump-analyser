@@ -951,6 +951,7 @@ dependencies = [
  "csv",
  "env_logger 0.10.2",
  "ethercrab",
+ "ethercrab-wire 0.2.0",
  "log",
  "nom",
  "num_enum",
@@ -1277,7 +1278,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "778e2ac28f6c47af28e4907f13ffd1e1ddbd400980a9abd7c8df189bf578a5ad"
 dependencies = [
  "libc",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]
@@ -1301,7 +1302,7 @@ dependencies = [
  "embassy-futures",
  "embassy-time",
  "embedded-io-async",
- "ethercrab-wire",
+ "ethercrab-wire 0.1.2",
  "futures-lite",
  "heapless",
  "libc",
@@ -1320,7 +1321,17 @@ version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5087b79d0066e4ed9d4a5f6e650cb42ff90385959949cc567e628e3df7cbb785"
 dependencies = [
- "ethercrab-wire-derive",
+ "ethercrab-wire-derive 0.1.2",
+ "heapless",
+]
+
+[[package]]
+name = "ethercrab-wire"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d15828cb020fb44c92ca67e1ee3c122c9621c2e00d383d066e488f0619023ba2"
+dependencies = [
+ "ethercrab-wire-derive 0.2.0",
  "heapless",
 ]
 
@@ -1329,6 +1340,18 @@ name = "ethercrab-wire-derive"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c3ee35fce1b63de35680f59e02bcc1331229d9cb56dbedf2464d1a9973b0b13"
+dependencies = [
+ "criterion",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.104",
+]
+
+[[package]]
+name = "ethercrab-wire-derive"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0e790b8011211ed70babfcacbd4277b91ee21402ad5ba6a2c293db02e2f12919"
 dependencies = [
  "criterion",
  "proc-macro2",
@@ -2026,7 +2049,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2caa5afb8bf9f3a2652760ce7d4f62d21c4d5a423e68466fca30df82f2330164"
 dependencies = [
  "cfg-if",
- "windows-targets 0.48.5",
+ "windows-targets 0.52.6",
 ]
 
 [[package]]
@@ -3185,7 +3208,7 @@ dependencies = [
  "errno",
  "libc",
  "linux-raw-sys 0.9.4",
- "windows-sys 0.52.0",
+ "windows-sys 0.59.0",
 ]
 
 [[package]]

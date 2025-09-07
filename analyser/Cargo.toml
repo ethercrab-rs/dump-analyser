@@ -13,6 +13,7 @@ env_logger = "0.10.0"
 ethercrab = { version = "0.4.0-rc.1", default-features = false, features = [
     "std",
 ] }
+ethercrab-wire = "0.2.0"
 log = "0.4.20"
 nom = { version = "7.1.3", default-features = false, features = ["alloc"] }
 num_enum = { version = "0.7.0", default-features = false }
