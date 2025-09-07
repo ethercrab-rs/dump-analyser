@@ -17,9 +17,14 @@ use nom::{
     IResult,
 };
 use packed_struct::{PackedStruct, PackedStructInfo, PackedStructSlice};
-use smoltcp::wire::EthernetFrame;
+use smoltcp::wire::{EthernetAddress, EthernetFrame};
 
 const LEN_MASK: u16 = 0b0000_0111_1111_1111;
+
+const ETHERCRAB_MAINDEVICE_ADDR: EthernetAddress =
+    EthernetAddress([0x10, 0x10, 0x10, 0x10, 0x10, 0x10]);
+const ETHERCRAB_MAINDEVICE_RESPONSE_ADDR: EthernetAddress =
+    EthernetAddress([0x12, 0x10, 0x10, 0x10, 0x10, 0x10]);
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Frame {
@@ -90,7 +95,11 @@ pub fn parse_pdu(mut raw_packet: EthernetFrame<Vec<u8>>) -> Result<Frame, etherc
         "Not a valid EtherCAT frame"
     );
 
-    let from_master = !raw_packet.src_addr().is_local();
+    let from_master = raw_packet.src_addr() == ETHERCRAB_MAINDEVICE_ADDR
+        // Support TwinCAT in a pretty kludgy way
+        || (raw_packet.src_addr() != ETHERCRAB_MAINDEVICE_ADDR
+            && raw_packet.src_addr() != ETHERCRAB_MAINDEVICE_RESPONSE_ADDR
+            && raw_packet.src_addr().is_unicast());
 
     let i = raw_packet.payload_mut();
 
